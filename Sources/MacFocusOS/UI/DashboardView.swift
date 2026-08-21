@@ -181,6 +181,14 @@ struct DashboardView: View {
                 .foregroundStyle(palette.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer()
+            Button("Fix") {
+                PermissionManager.resetScreenPermission()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    PermissionManager.requestScreen()
+                    PermissionManager.openPrivacyPane("Privacy_ScreenCapture")
+                }
+            }
+            .buttonStyle(FocusActionStyle(filled: true, tint: palette.misaligned))
             Button("Recheck") {
                 manager.refreshPermission()
             }

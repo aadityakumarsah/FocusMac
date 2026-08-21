@@ -73,9 +73,21 @@ struct OnboardingView: View {
             )
 
             if screenAsked && !screenGranted {
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 6) {
                     Label("In System Settings → Privacy & Security → Screen Recording, switch ON “FocusMac”.", systemImage: "lightbulb")
-                    Label("Not in the list? Click  +  and add FocusMac from Applications, then restart this app.", systemImage: "plus.circle")
+                    Label("Not in the list? Click  +  and add it from here:", systemImage: "plus.circle")
+                    Text(PermissionManager.appPath)
+                        .font(.system(size: 9.5, design: .monospaced))
+                        .foregroundStyle(palette.text.opacity(0.8))
+                        .textSelection(.enabled)
+                        .lineLimit(2)
+                    Button("Still stuck? Reset & re-request") {
+                        PermissionManager.resetScreenPermission()
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            PermissionManager.requestScreen()
+                        }
+                    }
+                    .buttonStyle(FocusActionStyle(filled: false, tint: palette.warn))
                 }
                 .font(.system(size: 10))
                 .foregroundStyle(palette.warn)

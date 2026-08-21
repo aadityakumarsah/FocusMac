@@ -36,4 +36,24 @@ enum PermissionManager {
             NSWorkspace.shared.open(url)
         }
     }
+
+    /// Path of the running app bundle — shown so users can add it manually
+    /// via the + button in System Settings.
+    static var appPath: String {
+        Bundle.main.bundleURL.path
+    }
+
+    /// Clears stale Screen Recording entries for this bundle id. Stale entries
+    /// happen when the app was rebuilt (new signature) or renamed — macOS then
+    /// keeps a dead row and never shows the prompt again.
+    @discardableResult
+    static func resetScreenPermission() -> Bool {
+        let bundleID = Bundle.main.bundleIdentifier ?? "com.focusmac.app"
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
+        task.arguments = ["reset", "ScreenCapture", bundleID]
+        try? task.run()
+        task.waitUntilExit()
+        return task.terminationStatus == 0
+    }
 }
