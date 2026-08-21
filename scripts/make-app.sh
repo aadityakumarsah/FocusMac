@@ -6,7 +6,7 @@ cd "$(dirname "$0")/.."
 APP="build/FocusMac.app"
 DMG="build/FocusMac.dmg"
 ZIP="build/FocusMac.zip"
-IDENTITY="${CODESIGN_IDENTITY:-Apple Development: Aaditya sah (J59TLR8U4M)}"
+IDENTITY="${CODESIGN_IDENTITY:-}"
 
 echo "→ Building release binary…"
 swift build -c release
@@ -30,39 +30,48 @@ echo "→ Packing human-service…"
 COPYFILE_DISABLE=1 tar -zcf "$APP/Contents/Resources/human-service.tar.gz" human-service
 echo "   Archive $(du -h "$APP/Contents/Resources/human-service.tar.gz" | awk '{print $1}')"
 
+# Clean all extended attributes that might cause quarantine issues
+echo "→ Cleaning extended attributes…"
 find "$APP" -name ".DS_Store" -delete
 find "$APP" -name "._*" -delete 2>/dev/null || true
 xattr -cr "$APP"
 
-# Sign with a stable identity when available so macOS TCC permission grants
-# (Screen Recording, Camera, Automation) survive rebuilds. Ad-hoc signing gets
-# a new cdhash every build and silently invalidates previously granted
-# permissions. Deep + hardened runtime + sealed resources required so Finder
-# / Gatekeeper don’t reject the bundle after download. Always clear xattrs
-# before signing — Finder info / resource forks make codesign fail.
+# Sign with proper identity or ad-hoc if not available
+# Use hardened runtime to prevent malware warnings
 echo "→ Signing…"
-if security find-identity -v -p codesigning | grep -qF "$IDENTITY"; then
-  codesign --force --deep --options runtime \
-    --entitlements Resources/FocusMac.entitlements \
-    --sign "$IDENTITY" "$APP"
+if [ -n "$IDENTITY" ] && security find-identity -v -p codesigning | grep -qF "$IDENTITY"; then
+  codesign --force --deep --options runtime --entitlements Resources/FocusMac.entitlements --sign "$IDENTITY" "$APP"
   echo "   Signed with: $IDENTITY"
 else
-  codesign --force --deep --sign - "$APP"
-  echo "   WARNING: stable identity not found — signed ad-hoc."
+  # Try to find any valid signing identity
+  if security find-identity -v -p codesigning | grep -q "Developer ID Application"; then
+    # Use the first available Developer ID
+    IDENTITY=$(security find-identity -v -p codesigning | grep "Developer ID Application" | head -1 | awk -F'"' '{print $2}')
+    codesign --force --deep --options runtime --entitlements Resources/FocusMac.entitlements --sign "$IDENTITY" "$APP"
+    echo "   Signed with Developer ID: $IDENTITY"
+  else
+    # Fall back to ad-hoc signing with runtime flag
+    codesign --force --deep --options runtime --sign - "$APP"
+    echo "   WARNING: signed ad-hoc with runtime flag"
+  fi
 fi
 
-codesign --verify --deep --strict "$APP" || {
+# Verify the signature
+codesign --verify --deep --strict "$APP" 2>&1 || {
   echo "   codesign verify reported issues — clearing xattrs and retrying…"
   xattr -cr "$APP"
-  if security find-identity -v -p codesigning | grep -qF "$IDENTITY"; then
-    codesign --force --deep --options runtime \
-      --entitlements Resources/FocusMac.entitlements \
-      --sign "$IDENTITY" "$APP"
+  if [ -n "$IDENTITY" ] && security find-identity -v -p codesigning | grep -qF "$IDENTITY"; then
+    codesign --force --deep --options runtime --entitlements Resources/FocusMac.entitlements --sign "$IDENTITY" "$APP"
+  elif security find-identity -v -p codesigning | grep -q "Developer ID Application"; then
+    IDENTITY=$(security find-identity -v -p codesigning | grep "Developer ID Application" | head -1 | awk -F'"' '{print $2}')
+    codesign --force --deep --options runtime --entitlements Resources/FocusMac.entitlements --sign "$IDENTITY" "$APP"
   else
-    codesign --force --deep --sign - "$APP"
+    codesign --force --deep --options runtime --sign - "$APP"
   fi
   codesign --verify --deep --strict "$APP"
 }
+
+# Clear extended attributes again after signing to prevent quarantine
 xattr -cr "$APP"
 
 echo "→ Creating DMG…"
@@ -73,6 +82,8 @@ cp -R "$APP" "$DMG_ROOT/FocusMac.app"
 ln -s /Applications "$DMG_ROOT/Applications"
 rm -f "$DMG"
 hdiutil create -volname "FocusMac" -srcfolder "$DMG_ROOT" -ov -format UDZO -imagekey zlib-level=9 "$DMG" >/dev/null
+
+# Clear extended attributes from DMG to prevent quarantine
 xattr -cr "$DMG"
 
 # Zip for in-app updater (same app, no quarantine).
