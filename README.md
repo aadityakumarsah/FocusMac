@@ -134,13 +134,7 @@ Measured on Apple M2 Pro, macOS 15, release build (`-c release`), 8-hour workday
 curl -fsSL https://raw.githubusercontent.com/aadityakumarsah/FocusMac/main/scripts/download.sh | bash
 ```
 
-You’ll get a live progress bar while FocusMac downloads. When it finishes, the DMG opens — drag **FocusMac** into **Applications**, then open it. First launch opens a **5-step setup wizard**: set your lock password → add your weekly schedule → one-click permissions → paste your AI key → Start Session. After that, sessions auto-start on every launch and macOS never asks for anything again.
-
-Prefer a fully automated install (no dragging)?
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/aadityakumarsah/FocusMac/main/scripts/remote-install.sh | bash
-```
+You’ll get a live progress bar while FocusMac downloads. It installs into **/Applications**, clears macOS quarantine (so Gatekeeper doesn’t false-flag it), and launches. First open shows a **5-step setup wizard**: set your lock password → add your weekly schedule → one-click permissions → paste your AI key → Start Session. After that, sessions auto-start on every launch and macOS never asks for anything again.
 
 ## 🤖 AI providers
 

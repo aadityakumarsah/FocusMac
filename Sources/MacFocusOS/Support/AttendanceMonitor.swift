@@ -56,8 +56,30 @@ final class AttendanceMonitor {
     static func captureFrame() -> Data? {
         let path = "/tmp/mf-cam-frame.jpg"
         try? FileManager.default.removeItem(atPath: path)
+        
+        // Try multiple possible ffmpeg paths
+        let ffmpegPaths = [
+            "/opt/homebrew/bin/ffmpeg",
+            "/usr/local/bin/ffmpeg",
+            "/opt/homebrew/opt/ffmpeg/bin/ffmpeg",
+            "/usr/bin/ffmpeg"
+        ]
+        
+        var ffmpegPath: String?
+        for path in ffmpegPaths {
+            if FileManager.default.fileExists(atPath: path) {
+                ffmpegPath = path
+                break
+            }
+        }
+        
+        guard let validFFmpegPath = ffmpegPath else {
+            print("FFmpeg not found in any standard location")
+            return nil
+        }
+        
         let proc = Process()
-        proc.executableURL = URL(fileURLWithPath: "/opt/homebrew/bin/ffmpeg")
+        proc.executableURL = URL(fileURLWithPath: validFFmpegPath)
         proc.arguments = [
             "-loglevel", "error",
             "-f", "avfoundation",
@@ -71,6 +93,7 @@ final class AttendanceMonitor {
             try proc.run()
             proc.waitUntilExit()
         } catch {
+            print("FFmpeg capture failed: \(error)")
             return nil
         }
         return FileManager.default.contents(atPath: path)

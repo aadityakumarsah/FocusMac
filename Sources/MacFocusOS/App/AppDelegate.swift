@@ -2,6 +2,7 @@ import AppKit
 import Combine
 import Dispatch
 import SwiftUI
+import UserNotifications
 import MacFocusOSCore
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
@@ -24,11 +25,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var quitRequested = false
     private var onboardingWindow: NSWindow?
 
+    private func requestNotificationPermission() {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, error in
+            if let error = error {
+                print("Notification permission error: \(error)")
+            }
+        }
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         NSApp.appearance = NSAppearance(named: .aqua)
         setupBlockOverlay()
         setupStatusItem()
+        requestNotificationPermission()
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
             self?.manager.ensureTrackingOn()
@@ -86,10 +96,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             }
             .store(in: &cancellables)
 
-        // First launch / incomplete setup: walk through the wizard (password,
-        // schedule, one-click permissions, AI key) before a session can start.
+        manager.$passwordSet
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.refreshOnboardingClosable()
+            }
+            .store(in: &cancellables)
+
+        // First launch: force the setup wizard (password first) before anything else.
         if !manager.setupComplete {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+            DispatchQueue.main.async { [weak self] in
                 self?.showOnboarding()
             }
         }
@@ -120,26 +136,42 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             NSApp.activate(ignoringOtherApps: true)
             return
         }
+        // Until a password exists, the window can’t be closed — fresh users must set one.
+        var mask: NSWindow.StyleMask = [.titled]
+        if manager.passwordSet {
+            mask.insert(.closable)
+        }
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 430, height: 420),
-            styleMask: [.titled, .closable],
+            contentRect: NSRect(x: 0, y: 0, width: 470, height: 480),
+            styleMask: mask,
             backing: .buffered,
             defer: false
         )
-        window.title = "Welcome to FocusMac"
+        window.title = manager.passwordSet ? "Welcome to FocusMac" : "Set your FocusMac password"
         window.isReleasedWhenClosed = false
         window.delegate = self
         window.contentView = NSHostingView(rootView: OnboardingView(
             onFinish: { [weak self] in
                 self?.onboardingWindow?.close()
+                self?.onboardingWindow = nil
                 self?.showDashboard()
             },
             manager: manager
         ))
         window.center()
+        window.level = .floating
         onboardingWindow = window
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    /// After the password is set, allow closing the wizard (other steps can resume later).
+    private func refreshOnboardingClosable() {
+        guard let window = onboardingWindow else { return }
+        if manager.passwordSet {
+            window.styleMask.insert(.closable)
+            window.title = "Welcome to FocusMac"
+        }
     }
 
     private func showCameraPanelIfNeeded() {
@@ -290,6 +322,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     private func showDashboard() {
+        // Fresh install: password first — don't open the dashboard yet.
+        if !manager.passwordSet {
+            showOnboarding()
+            return
+        }
         if let window = dashboardWindow {
             window.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
@@ -314,6 +351,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     private func showSettings() {
+        if !manager.passwordSet {
+            showOnboarding()
+            return
+        }
         if let window = settingsWindow {
             window.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
@@ -341,6 +382,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         if quitApproved || manager.skipPasswordForNextQuit {
+            // Clean up resources before terminating
+            manager.cleanup()
             return .terminateNow
         }
         if manager.passwordSet, manager.passwordLocked {
@@ -348,6 +391,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             showPasswordPrompt(message: "FocusMac is locked — enter your password to quit.")
             return .terminateCancel
         }
+        // Clean up resources before terminating
+        manager.cleanup()
         return .terminateNow
     }
 
@@ -420,6 +465,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     // MARK: - NSWindowDelegate
 
+    /// Block closing the setup wizard until a password exists.
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        if let onboardingWindow, sender == onboardingWindow, !manager.passwordSet {
+            NSSound.beep()
+            sender.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return false
+        }
+        return true
+    }
+
     /// Closing the password prompt with the ✕ button must cancel whatever was
     /// pending (including a quit request) — otherwise a later successful unlock
     /// could terminate the app during an unrelated action. Closing the setup
@@ -429,6 +485,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if let passwordPanel, panel == passwordPanel {
             quitRequested = false
             manager.cancelPendingProtectedAction()
+        }
+        if let onboardingWindow, panel == onboardingWindow {
+            self.onboardingWindow = nil
         }
     }
 }

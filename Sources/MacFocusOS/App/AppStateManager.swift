@@ -2,6 +2,7 @@ import Combine
 import CryptoKit
 import Foundation
 import SwiftUI
+import UserNotifications
 import MacFocusOSCore
 
 enum ModelStatus: Equatable {
@@ -10,6 +11,15 @@ enum ModelStatus: Equatable {
     case success(String)
     case failed(String)
     case configuring(OllamaProgress)
+}
+
+extension ModelStatus {
+    var isInstalling: Bool {
+        if case .configuring = self {
+            return true
+        }
+        return false
+    }
 }
 
 struct CameraOverlayState {
@@ -386,6 +396,15 @@ final class AppStateManager: ObservableObject {
             }
         }
     }
+    
+    // Add edge case handling for when the app is terminated unexpectedly
+    func cleanup() {
+        analysisTimer?.invalidate()
+        analysisTimer = nil
+        disableAttendancePipeline()
+        liveVideo.stop()
+        mouseMonitor.stop()
+    }
 
     private func finishTick(ctx: ActivityContext, nowPlaying: MediaPauser.NowPlayingInfo?) {
         currentIsBrowser = ctx.isBrowser
@@ -466,6 +485,14 @@ final class AppStateManager: ObservableObject {
         if distracting {
             MediaPauser.pauseAll()
         }
+        
+        // Special handling for YouTube: block only when watching videos, not scrolling
+        if ctx.site == "youtube" && isWatchingVideo && snap.classification?.alignment == .misaligned {
+            // User is watching a non-educational video - trigger blocking
+            if !quietBlock {
+                blocked = true
+            }
+        }
     }
 
     private static func isQuietBlock(_ block: ScheduleBlock) -> Bool {
@@ -487,9 +514,32 @@ final class AppStateManager: ObservableObject {
                 "Free time started",
                 "\(scheduled.type.label) — everything is allowed until \(scheduled.endLabel) (\(minutes) min). Enjoy it!"
             )
+            // Also trigger system notification
+            sendSystemNotification(title: "Free time started", body: "\(scheduled.type.label) — everything is allowed until \(scheduled.endLabel)")
         } else if let previous, previous.isFreeTime {
             let next = scheduled.map { "Back to: \($0.title)" } ?? "No scheduled block"
             onFreeTimeNotice?("Free time over", next)
+            // Also trigger system notification
+            sendSystemNotification(title: "Free time over", body: next)
+        } else if let scheduled {
+            // Notify when starting a new work/study block
+            onFreeTimeNotice?("Time to focus", "Starting: \(scheduled.title)")
+            sendSystemNotification(title: "Time to focus", body: "Starting: \(scheduled.title)")
+        }
+    }
+    
+    private func sendSystemNotification(title: String, body: String) {
+        let center = UNUserNotificationCenter.current()
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = UNNotificationSound.default
+        
+        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+        center.add(request) { error in
+            if let error = error {
+                print("Notification error: \(error)")
+            }
         }
     }
 
@@ -724,6 +774,7 @@ final class AppStateManager: ObservableObject {
             if result.closedCount > 0 {
                 closeNeedsAutomationPermission = false
                 lastCloseFeedback = "Closed \(result.closedCount) tab\(result.closedCount == 1 ? "" : "s")."
+                blocked = false // Clear blocked state after successful close
             } else if result.automationDenied {
                 closeNeedsAutomationPermission = true
                 lastCloseFeedback = "Need Automation permission for \(appName) — click “Open Settings”, allow FocusMac, then try again."
@@ -742,17 +793,22 @@ final class AppStateManager: ObservableObject {
 
     private func quitApp(pid: pid_t, name: String, reason: String?) {
         let app = NSRunningApplication(processIdentifier: pid)
-        app?.terminate()
-        if app == nil {
-            lastCloseFeedback = "Couldn't reach \(name)."
-        } else {
+        if let app = app {
+            app.terminate()
             lastCloseFeedback = reason ?? "Asked \(name) to quit."
             DispatchQueue.global(qos: .userInitiated).asyncAfter(
                 deadline: .now() + 1.2,
                 execute: DispatchWorkItem {
-                    if let app, !app.isTerminated { app.forceTerminate() }
+                    if !app.isTerminated { 
+                        app.forceTerminate()
+                        DispatchQueue.main.async {
+                            self.lastCloseFeedback = "Force quit \(name)."
+                        }
+                    }
                 }
             )
+        } else {
+            lastCloseFeedback = "Couldn't reach \(name)."
         }
     }
 
@@ -767,6 +823,7 @@ final class AppStateManager: ObservableObject {
         if ok {
             closeNeedsAutomationPermission = false
             lastCloseFeedback = "Went back — now get to \(planTitle)."
+            blocked = false // Clear blocked state after successful navigation
         } else if bundleID != "com.apple.Safari" {
             closeNeedsAutomationPermission = true
             lastCloseFeedback = "Need Automation permission for \(appName) — click “Open Settings”, allow FocusMac, then try again."
@@ -840,16 +897,12 @@ final class AppStateManager: ObservableObject {
         await ollamaManager.listModels()
     }
 
-    func installOllama() async {
+    func installOllama() async throws {
         modelStatus = .configuring(.downloading(0))
-        do {
-            try await ollamaManager.configure(model: modelConfig.resolvedModelName()) { progress in
-                self.modelStatus = .configuring(progress)
-            }
-            ollamaServerRunning = true
-        } catch {
-            modelStatus = .configuring(.failed(error.localizedDescription))
+        try await ollamaManager.configure(model: modelConfig.resolvedModelName()) { progress in
+            self.modelStatus = .configuring(progress)
         }
+        ollamaServerRunning = true
     }
 
     // MARK: - Semantic classification
@@ -950,46 +1003,71 @@ final class AppStateManager: ObservableObject {
                 latestVersion = nil
                 return
             }
+            // Prefer a full app zip; fall back to DMG. Avoid tiny stub assets.
+            var best: URL?
             if let assets = release["assets"] as? [[String: Any]] {
-                for asset in assets where (asset["name"] as? String)?.hasSuffix(".zip") == true {
-                    if let urlStr = asset["browser_download_url"] as? URL {
-                        updateAssetURL = urlStr
-                    } else if let urlStr = asset["browser_download_url"] as? String, let url = URL(string: urlStr) {
-                        updateAssetURL = url
+                for asset in assets {
+                    guard let name = asset["name"] as? String,
+                          let urlStr = asset["browser_download_url"] as? String,
+                          let url = URL(string: urlStr) else { continue }
+                    let lower = name.lowercased()
+                    if lower == "focusmac.zip" || (lower.hasPrefix("focusmac") && lower.hasSuffix(".zip")) {
+                        best = url
+                        break
+                    }
+                    if best == nil, lower == "focusmac.dmg" || lower.hasSuffix(".dmg") {
+                        best = url
                     }
                 }
             }
+            updateAssetURL = best
             latestVersion = version
         } catch {
             // Offline or rate-limited — silently retry on the next poll.
         }
     }
 
-    /// Downloads the release zip, swaps /Applications/FocusMac.app in place and
-    /// relaunches. The quit bypasses the password gate on purpose.
+    /// Downloads the release app, swaps /Applications/FocusMac.app in place and
+    /// relaunches. Quarantine is cleared so Gatekeeper won’t false-flag the update.
     func installUpdate() async {
         guard let url = updateAssetURL, !installingUpdate else { return }
         installingUpdate = true
         defer { installingUpdate = false }
         let tmpDir = FileManager.default.temporaryDirectory.appendingPathComponent("FocusMacUpdate", isDirectory: true)
-        let zipURL = tmpDir.appendingPathComponent("FocusMac-update.zip")
+        let isDMG = url.pathExtension.lowercased() == "dmg"
+        let packageURL = tmpDir.appendingPathComponent(isDMG ? "FocusMac-update.dmg" : "FocusMac-update.zip")
         let extractDir = tmpDir.appendingPathComponent("extracted")
         do {
             try? FileManager.default.removeItem(at: tmpDir)
             try FileManager.default.createDirectory(at: extractDir, withIntermediateDirectories: true)
             let (data, _) = try await URLSession.shared.data(from: url)
-            try data.write(to: zipURL)
-            try runProcess("/usr/bin/ditto", ["-x", "-k", zipURL.path, extractDir.path])
-            guard let newApp = (try? FileManager.default.contentsOfDirectory(atPath: extractDir.path))?
-                .first(where: { $0.hasSuffix(".app") }) else { return }
-            let src = extractDir.appendingPathComponent(newApp).path
+            try data.write(to: packageURL)
+            try? runProcess("/usr/bin/xattr", ["-cr", packageURL.path])
+
+            let srcApp: String
+            if isDMG {
+                let mount = "/Volumes/FocusMacUpdate"
+                try? runProcess("/usr/bin/hdiutil", ["detach", mount, "-quiet"])
+                try runProcess("/usr/bin/hdiutil", [
+                    "attach", packageURL.path, "-nobrowse", "-quiet", "-mountpoint", mount
+                ])
+                defer { try? runProcess("/usr/bin/hdiutil", ["detach", mount, "-quiet"]) }
+                srcApp = "\(mount)/FocusMac.app"
+                guard FileManager.default.fileExists(atPath: srcApp) else { return }
+            } else {
+                try runProcess("/usr/bin/ditto", ["-x", "-k", packageURL.path, extractDir.path])
+                guard let newApp = (try? FileManager.default.contentsOfDirectory(atPath: extractDir.path))?
+                    .first(where: { $0.hasSuffix(".app") }) else { return }
+                srcApp = extractDir.appendingPathComponent(newApp).path
+            }
+
             let dst = "/Applications/FocusMac.app"
             let old = "/Applications/FocusMac.old"
             try? runProcess("/bin/rm", ["-rf", old])
             if FileManager.default.fileExists(atPath: dst) {
                 try runProcess("/bin/mv", [dst, old])
             }
-            try runProcess("/bin/mv", [src, dst])
+            try runProcess("/usr/bin/ditto", [srcApp, dst])
             try? runProcess("/usr/bin/xattr", ["-cr", dst])
             try? runProcess("/bin/rm", ["-rf", old])
             skipPasswordForNextQuit = true
@@ -1044,6 +1122,9 @@ final class AppStateManager: ObservableObject {
         if effectivePhase != .blocked {
             lastCloseFeedback = nil
             closeNeedsAutomationPermission = false
+            blocked = false
+        } else {
+            blocked = true
         }
         timeline = snap.timeline
         xpToday = Int(snap.day.xp)
@@ -1054,7 +1135,6 @@ final class AppStateManager: ObservableObject {
         sessionDuration = snap.session?.duration ?? 0
         insight = snap.insight
         warningDuration = snap.warningDuration
-        blocked = effectivePhase == .blocked
         currentScheduleBlock = snap.scheduled
         if snap.xpGain != 0, animateXP {
             lastXPGain = snap.xpGain

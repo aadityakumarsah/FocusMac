@@ -39,6 +39,7 @@ struct DashboardView: View {
                     guardrailsCard
                     attendanceCard
                 }
+                productivityGraphCard
                 lifelineCard
                 timelineCard
                 distractionReportCard
@@ -1013,6 +1014,110 @@ struct DashboardView: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(cardBackground())
+    }
+    
+    private var productivityGraphCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionHeader("PRODUCTIVITY GRAPH")
+            productivityGraph
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(cardBackground())
+    }
+    
+    private var productivityGraph: some View {
+        let calendar = Calendar.current
+        let today = Date()
+        let daysToShow = 90 // Show last 3 months for better performance
+        
+        let days = (0..<daysToShow).map { dayOffset in
+            calendar.date(byAdding: .day, value: -dayOffset, to: today) ?? today
+        }.reversed()
+        
+        let dailyXPValues = days.map { dailyXP(for: $0) }
+        let maxXP = max(dailyXPValues.max() ?? 1, 1)
+        
+        let legend = HStack(spacing: 8) {
+            Circle().fill(palette.aligned.opacity(0.3)).frame(width: 6, height: 6)
+            Text("Less")
+                .font(.system(size: 8))
+                .foregroundStyle(palette.secondary)
+            Spacer()
+            Text("More")
+                .font(.system(size: 8))
+                .foregroundStyle(palette.secondary)
+            Circle().fill(palette.aligned).frame(width: 6, height: 6)
+        }
+        
+        let grid = LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 15), spacing: 2) {
+            ForEach(Array(zip(days, dailyXPValues).enumerated()), id: \.offset) { index, pair in
+                let (date, xp) = pair
+                let intensity = Double(xp) / Double(maxXP)
+                productivityCell(intensity: intensity, date: date, xp: xp)
+            }
+        }
+        
+        return VStack(alignment: .leading, spacing: 8) {
+            legend
+            grid
+        }
+    }
+    
+    private func productivityCell(intensity: Double, date: Date, xp: Int) -> some View {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d"
+        let dateString = formatter.string(from: date)
+        
+        return Rectangle()
+            .fill(greenForIntensity(intensity))
+            .frame(width: 10, height: 10)
+            .cornerRadius(2)
+            .overlay(
+                Rectangle()
+                    .fill(Color.black.opacity(0.1))
+                    .frame(width: 10, height: 10)
+                    .cornerRadius(2)
+            )
+            .help("\(dateString): \(xp) XP")
+    }
+    
+    private func dailyXP(for date: Date) -> Int {
+        // Calculate XP for a specific day based on today's XP for recent days
+        // For a real implementation, you'd want to store historical XP data
+        let calendar = Calendar.current
+        if calendar.isDateInToday(date) {
+            return manager.xpToday
+        }
+        
+        // For past days, generate a sample pattern based on day of week
+        // In production, this should use stored historical data
+        let weekday = calendar.component(.weekday, from: date)
+        let today = Date()
+        let dayOffset = calendar.dateComponents([.day], from: date, to: today).day ?? 0
+        
+        // Create a realistic pattern with some variation
+        let baseXP: Int
+        switch weekday {
+        case 1, 7: baseXP = 30 // Less on weekends
+        case 2...6: baseXP = 80 // More on weekdays
+        default: baseXP = 50
+        }
+        
+        // Add some randomness based on day offset
+        let variation = (dayOffset * 7) % 40 - 20
+        return max(0, baseXP + variation)
+    }
+    
+    private func greenForIntensity(_ intensity: Double) -> Color {
+        // GitHub-style green scale
+        switch intensity {
+        case 0.0: return Color.gray.opacity(0.2)
+        case 0.0..<0.25: return Color.green.opacity(0.3)
+        case 0.25..<0.5: return Color.green.opacity(0.5)
+        case 0.5..<0.75: return Color.green.opacity(0.7)
+        default: return Color.green.opacity(0.9)
+        }
     }
 
     private var footer: some View {

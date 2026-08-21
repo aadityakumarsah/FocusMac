@@ -8,8 +8,6 @@
     "start": "node server.cjs"
   },
   "dependencies": {
-    "@huggingface/transformers": "^4.2.0",
-    "@tensorflow-models/coco-ssd": "^2.2.3",
     "@tensorflow/tfjs-node": "^4.22.0",
     "@vladmandic/human": "3.3.6",
     "onnxruntime-node": "^1.27.0"

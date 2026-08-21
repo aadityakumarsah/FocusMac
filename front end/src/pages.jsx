@@ -116,7 +116,7 @@ function Term({ onCopy }) {
       if (elapsed < 2800) {
         setPhase("download");
         setPct(Math.min(100, Math.round((elapsed / 2800) * 100)));
-      } else if (elapsed < 3600) {
+      } else if (elapsed < 4000) {
         setPhase("open");
         setPct(100);
       } else {
@@ -160,14 +160,15 @@ function Term({ onCopy }) {
             <>
               <span className="g">✓</span>  download complete{"\n"}
               {"  "}
-              <span className="p">{spin}</span> opening disk image…{"\n"}
+              <span className="p">{spin}</span> installing to /Applications…{"\n"}
             </>
           )}
           {phase === "done" && (
             <>
               <span className="g">✓</span>  download complete{"\n"}
-              <span className="g">✓</span>  opened ~/Downloads/FocusMac.dmg{"\n\n"}
-              <span className="g">Ready.</span> Drag FocusMac → Applications
+              <span className="g">✓</span>  installed → /Applications{"\n"}
+              <span className="g">✓</span>  launched FocusMac{"\n\n"}
+              <span className="g">Ready.</span> Set your lock password
             </>
           )}
         </code>
@@ -309,8 +310,8 @@ export function HomePage({ onCopy }) {
               Then Applications.
             </h2>
             <p className="sub tight">
-              Copy the command, open Terminal, hit return. Watch the download, then drag FocusMac
-              into Applications.
+              Copy the command, open Terminal, hit return. FocusMac downloads, installs to
+              Applications, and opens — no Gatekeeper malware false alarm.
             </p>
             <div className="row">
               <button type="button" className="btn primary" onClick={onCopy}>
@@ -502,7 +503,7 @@ export function InstallPage({ onCopy }) {
             <br />
             <span>Paste. Focus.</span>
           </h1>
-          <p className="sub">One Terminal paste. Beautiful progress, then drag into Applications.</p>
+          <p className="sub">One Terminal paste. Downloads, installs, and opens FocusMac.</p>
         </Reveal>
       </section>
 
@@ -525,10 +526,10 @@ export function InstallPage({ onCopy }) {
               <b>1</b> Copy the prompt
             </li>
             <li>
-              <b>2</b> Paste in Terminal — watch the download
+              <b>2</b> Paste in Terminal — watch it install
             </li>
             <li>
-              <b>3</b> Drag FocusMac → Applications
+              <b>3</b> Set your lock password
             </li>
           </ol>
           <p className="micro">

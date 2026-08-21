@@ -25,6 +25,7 @@ struct OnboardingView: View {
     @State private var autoTestTask: Task<Void, Never>?
     // Ticking state forces permission checks to re-evaluate live.
     @State private var statusTick = Date()
+    @FocusState private var passwordFieldFocused: Bool
 
     private let clock = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     private let steps = ["Password", "Schedule", "Permissions", "AI Key", "Start"]
@@ -43,6 +44,17 @@ struct OnboardingView: View {
     }
 
     private var allDone: Bool { passwordDone && scheduleDone && permissionsDone && aiDone }
+
+    /// Fresh users must finish the current step before moving on — especially password.
+    private var canContinue: Bool {
+        switch step {
+        case 0: return passwordDone
+        case 1: return scheduleDone
+        case 2: return permissionsDone
+        case 3: return aiDone
+        default: return allDone
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -64,7 +76,16 @@ struct OnboardingView: View {
         .frame(width: 470)
         .background(palette.card.opacity(scheme == .dark ? 0.98 : 0.99))
         .onReceive(clock) { _ in statusTick = Date() }
-        .onAppear { loadConfig() }
+        .onAppear {
+            loadConfig()
+            // First-run: land on password and focus the field immediately.
+            if !passwordDone {
+                step = 0
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    passwordFieldFocused = true
+                }
+            }
+        }
         .onDisappear { autoTestTask?.cancel() }
     }
 
@@ -111,8 +132,12 @@ struct OnboardingView: View {
             }
             Spacer()
             if step < steps.count - 1 {
-                Button("Continue") { step += 1 }
-                    .buttonStyle(FocusActionStyle(filled: true, tint: palette.accent))
+                Button(step == 0 && !passwordDone ? "Set password to continue" : "Continue") {
+                    guard canContinue else { return }
+                    step += 1
+                }
+                .buttonStyle(FocusActionStyle(filled: true, tint: palette.accent))
+                .disabled(!canContinue)
             }
         }
     }
@@ -122,30 +147,46 @@ struct OnboardingView: View {
     private var passwordStep: some View {
         VStack(alignment: .leading, spacing: 10) {
             stepTitle("Set your lock password",
-                      "Quitting FocusMac, disabling checks — everything requires this. It can never be removed or recovered; only changed while unlocked. Forget it and only the developer can help.")
+                      "Required before anything else. Quitting FocusMac and disabling checks need this forever — it can’t be removed or recovered, only changed while unlocked.")
             if passwordDone {
                 doneRow("Password set — stored forever")
             } else {
-                SecureField("Choose a password", text: $newPassword).fieldStyle(palette)
-                SecureField("Confirm password", text: $confirmPassword).fieldStyle(palette)
-                Button("Set Password") {
-                    guard newPassword == confirmPassword else {
-                        manager.passwordMessage = "Passwords do not match."
-                        return
-                    }
-                    if manager.setPassword(newPassword) {
-                        newPassword = ""
-                        confirmPassword = ""
-                    }
-                }
-                .buttonStyle(FocusActionStyle(filled: true, tint: palette.accent))
-                .disabled(newPassword.isEmpty || confirmPassword.isEmpty)
+                SecureField("Choose a password", text: $newPassword)
+                    .fieldStyle(palette)
+                    .focused($passwordFieldFocused)
+                SecureField("Confirm password", text: $confirmPassword)
+                    .fieldStyle(palette)
+                    .onSubmit { submitPassword() }
+                Button("Set Password") { submitPassword() }
+                    .buttonStyle(FocusActionStyle(filled: true, tint: palette.accent))
+                    .disabled(newPassword.isEmpty || confirmPassword.isEmpty)
+                    .keyboardShortcut(.defaultAction)
                 if !manager.passwordMessage.isEmpty {
                     Text(manager.passwordMessage)
                         .font(.system(size: 10.5, weight: .medium))
-                        .foregroundStyle(manager.passwordMessage.contains("match") ? palette.misaligned : palette.aligned)
+                        .foregroundStyle(manager.passwordMessage.contains("match") || manager.passwordMessage.contains("empty") ? palette.misaligned : palette.aligned)
                 }
             }
+        }
+    }
+
+    private func submitPassword() {
+        guard !passwordDone else {
+            step = 1
+            return
+        }
+        guard !newPassword.isEmpty else {
+            manager.passwordMessage = "Password cannot be empty."
+            return
+        }
+        guard newPassword == confirmPassword else {
+            manager.passwordMessage = "Passwords do not match."
+            return
+        }
+        if manager.setPassword(newPassword) {
+            newPassword = ""
+            confirmPassword = ""
+            withAnimation(.easeInOut(duration: 0.2)) { step = 1 }
         }
     }
 
@@ -320,7 +361,13 @@ struct OnboardingView: View {
                         .foregroundStyle(palette.secondary)
                     Spacer()
                     Button(manager.modelStatus.isInstalling ? "Installing…" : "Install Ollama") {
-                        Task { await manager.installOllama() }
+                        Task {
+                            do {
+                                try await manager.installOllama()
+                            } catch {
+                                print("Ollama installation failed: \(error)")
+                            }
+                        }
                     }
                     .buttonStyle(FocusActionStyle(filled: true, tint: palette.accent))
                     .disabled(manager.modelStatus.isInstalling || manager.ollamaServerRunning)
@@ -413,7 +460,7 @@ struct OnboardingView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 11)
             }
-            .buttonStyle(FocusActionStyle(filled: true, tint: palette.misaligned))
+            .buttonStyle(FocusActionStyle(filled: true, tint: allDone ? palette.accent : palette.secondary))
             .disabled(!allDone)
             if !allDone {
                 Text("Complete every step above to unlock the start button.")
@@ -482,13 +529,6 @@ struct OnboardingView: View {
         RoundedRectangle(cornerRadius: 9)
             .fill(palette.background.opacity(0.5))
             .overlay(RoundedRectangle(cornerRadius: 9).stroke(palette.border, lineWidth: 1))
-    }
-}
-
-extension ModelStatus {
-    var isInstalling: Bool {
-        if case .configuring = self { return true }
-        return false
     }
 }
 

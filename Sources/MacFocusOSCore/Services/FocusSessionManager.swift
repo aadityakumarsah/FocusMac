@@ -250,6 +250,11 @@ public final class FocusSessionManager {
             activity = store.state.timeline.last
         }
 
+        // Edge case: handle nil context gracefully
+        guard activity != nil else {
+            return buildSnapshot(now: now)
+        }
+
         lastClassification = classificationOverride ?? rules.classify(
             ctx, goal: store.state.goal, duration: activity?.duration ?? 0
         )

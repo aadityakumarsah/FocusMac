@@ -20,19 +20,19 @@ public struct RuleEngine {
     public func classifyVideoWatch(site: String, title: String?, goal: FocusGoal?) -> Classification {
         if let title, !title.isEmpty, let goal, matches(title, goal) {
             return Classification(
-                category: .learning, alignment: .aligned, xpPerMinute: 7,
+                category: .learning, alignment: .aligned, xpPerMinute: 15,
                 confidence: 0.92, reason: "\(site.capitalized) video matches your goal"
             )
         }
         if let title,
            Self.learningHints.contains(where: { title.lowercased().contains($0) }) {
             return Classification(
-                category: .learning, alignment: .aligned, xpPerMinute: 7,
+                category: .learning, alignment: .aligned, xpPerMinute: 15,
                 confidence: 0.85, reason: "Educational video on \(site)"
             )
         }
         return Classification(
-            category: .entertainment, alignment: .misaligned, xpPerMinute: -3,
+            category: .entertainment, alignment: .misaligned, xpPerMinute: -5,
             confidence: 0.85, reason: "Watching a non-study video on \(site)"
         )
     }

@@ -623,7 +623,11 @@ struct SettingsView: View {
     private func runInstall() async {
         push()
         installing = true
-        await manager.installOllama()
+        do {
+            try await manager.installOllama()
+        } catch {
+            print("Ollama installation failed: \(error)")
+        }
         installing = false
         await refreshOllamaStatus()
     }

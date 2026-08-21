@@ -30,11 +30,29 @@ const config = {
 };
 
 async function init() {
-  human = new Human.Human(config);
-  await human.tf.ready();
-  await human.load();
-  yoloSession = await ort.InferenceSession.create(path.join(__dirname, 'models', 'yolov8n.onnx'));
-  console.log('HUMAN READY', 'human', human.version, 'tf', tf.version_core, 'yolo', 'yolov8n');
+  try {
+    human = new Human.Human(config);
+    await human.tf.ready();
+    await human.load();
+    
+    // Try to load YOLO model, log if it fails but don't crash
+    try {
+      const yoloPath = path.join(__dirname, 'models', 'yolov8n.onnx');
+      if (require('fs').existsSync(yoloPath)) {
+        yoloSession = await ort.InferenceSession.create(yoloPath);
+        console.log('HUMAN READY', 'human', human.version, 'tf', tf.version_core, 'yolo', 'yolov8n');
+      } else {
+        console.warn('YOLO model file not found at:', yoloPath, '- phone detection will be limited to hand proximity');
+        console.log('HUMAN READY', 'human', human.version, 'tf', tf.version_core, 'yolo', 'disabled');
+      }
+    } catch (yoloError) {
+      console.warn('Failed to load YOLO model:', yoloError.message, '- phone detection will be limited to hand proximity');
+      console.log('HUMAN READY', 'human', human.version, 'tf', tf.version_core, 'yolo', 'disabled');
+    }
+  } catch (error) {
+    console.error('FATAL INIT', error);
+    throw error;
+  }
 }
 
 function cosineSim(a, b) {
@@ -239,7 +257,7 @@ function sendJSON(res, code, obj) {
 
 const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && req.url === '/health') {
-    return sendJSON(res, 200, { ok: true, human: human ? 'ready' : 'loading', yolo: yoloSession ? 'ready' : 'loading' });
+    return sendJSON(res, 200, { ok: true, human: human ? 'ready' : 'loading', yolo: yoloSession ? 'ready' : 'disabled' });
   }
   if (req.method === 'POST' && req.url === '/analyze') {
     let body = [];
@@ -253,37 +271,51 @@ const server = http.createServer(async (req, res) => {
         try {
           tensor = tf.node.decodeImage(buffer, 3);
         } catch (e) {
+          console.error('Image decode failed:', e.message);
           return sendJSON(res, 400, { error: 'decode failed: ' + e.message });
         }
+        
         const result = await human.detect(tensor);
-        const objects = await yoloDetect(tensor);
+        let objects = [];
+        if (yoloSession) {
+          try {
+            objects = await yoloDetect(tensor);
+          } catch (yoloError) {
+            console.warn('YOLO detection failed:', yoloError.message, '- falling back to hand proximity only');
+          }
+        }
+        
         tensor.dispose();
         const verdict = analyze(result);
         const faceBox = boxOf(result.face && result.face[0]);
-        const phones = objects.filter((o) => o.label === 'cell phone' && o.score > 0.55);
-        if (phones.length) {
-          const nearFace = phones.some((p) => {
-            const pb = p.box;
-            if (!pb) return false;
-            if (faceBox) {
-              const fx = faceBox.x + faceBox.width / 2;
-              const fy = faceBox.y + faceBox.height / 2;
-              const px = (pb[0] + pb[2]) / 2;
-              const py = (pb[1] + pb[3]) / 2;
-              const dx = Math.abs(fx - px);
-              const dy = Math.abs(fy - py);
-              // Boundary: the phone must be within one face-size of the face
-              // center — anything further away is not "using" it.
-              const reach = Math.max(faceBox.width, faceBox.height) * 1.0;
-              return dx < reach && dy < reach;
-            }
-            return true;
-          });
-          if (nearFace) verdict.phoneUse = true;
+        
+        // Only use YOLO phone detection if we have results
+        if (objects.length > 0) {
+          const phones = objects.filter((o) => o.label === 'cell phone' && o.score > 0.55);
+          if (phones.length) {
+            const nearFace = phones.some((p) => {
+              const pb = p.box;
+              if (!pb) return false;
+              if (faceBox) {
+                const fx = faceBox.x + faceBox.width / 2;
+                const fy = faceBox.y + faceBox.height / 2;
+                const px = (pb[0] + pb[2]) / 2;
+                const py = (pb[1] + pb[3]) / 2;
+                const dx = Math.abs(fx - px);
+                const dy = Math.abs(fy - py);
+                const reach = Math.max(faceBox.width, faceBox.height) * 1.0;
+                return dx < reach && dy < reach;
+              }
+              return true;
+            });
+            if (nearFace) verdict.phoneUse = true;
+          }
         }
-        console.log('ANALYZE', new Date().toISOString(), JSON.stringify(verdict), 'yolo=', JSON.stringify(objects.map((o) => o.label + ':' + Math.round(o.score * 100))));
+        
+        console.log('ANALYZE', new Date().toISOString(), JSON.stringify(verdict), 'yolo_objects=', objects.length, 'yolo_enabled=', !!yoloSession);
         sendJSON(res, 200, { ok: true, verdict, objects });
       } catch (e) {
+        console.error('Analysis failed:', e.message, e.stack);
         sendJSON(res, 500, { error: e.message });
       }
     });

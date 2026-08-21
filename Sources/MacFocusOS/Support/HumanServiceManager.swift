@@ -110,7 +110,10 @@ enum HumanServiceManager {
     @discardableResult
     static func ensureRunning() -> Bool {
         guard !isRunning() else { return true }
-        guard let serviceDir = serviceDirectory(), let nodeExecutable else { return false }
+        guard let serviceDir = serviceDirectory(), let nodeExecutable else { 
+            print("Human service: service directory or node executable not found")
+            return false 
+        }
         let proc = Process()
         proc.executableURL = nodeExecutable
         proc.arguments = ["server.cjs"]
@@ -119,8 +122,10 @@ enum HumanServiceManager {
         proc.standardError = FileHandle.nullDevice
         do {
             try proc.run()
+            print("Human service started successfully")
             return true
         } catch {
+            print("Failed to start human service: \(error)")
             return false
         }
     }
