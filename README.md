@@ -128,14 +128,16 @@ Measured on Apple M2 Pro, macOS 15, release build (`-c release`), 8-hour workday
 
 ## 🚀 Install
 
-Download the latest build from [Releases](https://github.com/aadityakumarsah/FocusMac/releases), unzip, and drag **FocusMac.app** to Applications.
+**From terminal (recommended):**
 
-On first launch, click **"Enable Everything — 1 Click"**: FocusMac requests Screen Recording, Camera and Browser Automation permissions back-to-back so you're never interrupted later.
+```bash
+git clone https://github.com/aadityakumarsah/FocusMac.git
+cd FocusMac && ./scripts/install.sh
+```
 
-Then:
-1. Set your password in Settings (it can never be removed — choose wisely)
-2. Pick an AI provider and paste your key (auto-detected & tested as you type), or use local Ollama
-3. Enter your weekly schedule — focus enforcement starts automatically
+Or download from [Releases](https://github.com/aadityakumarsah/FocusMac/releases), unzip, and drag **FocusMac.app** to Applications.
+
+First launch opens a **5-step setup wizard**: set your lock password → add your weekly schedule → one-click permissions → paste your AI key → Start Session. After that, sessions auto-start on every launch and macOS never asks for anything again.
 
 ## 🤖 AI providers
 

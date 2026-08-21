@@ -106,10 +106,13 @@ async function yoloDetect(tensor) {
   for (let i = 0; i < npred; i++) {
     let best = -1, bestS = 0;
     for (let c = 0; c < nc; c++) {
-      const s = 1 / (1 + Math.exp(-pred[(4 + c) * npred + i]));
+      // YOLOv8 ONNX export already emits sigmoided class probabilities in
+      // [0,1] — applying another sigmoid here maps every score into the
+      // 0.5–0.73 band and floods the result with thousands of false hits.
+      const s = pred[(4 + c) * npred + i];
       if (s > bestS) { bestS = s; best = c; }
     }
-    if (bestS < 0.4) continue;
+    if (bestS < 0.45) continue;
     const cx = pred[i], cy = pred[npred + i], w = pred[2 * npred + i], h = pred[3 * npred + i];
     boxes.push([(cx - w / 2 - padX) / scale, (cy - h / 2 - padY) / scale, (cx + w / 2 - padX) / scale, (cy + h / 2 - padY) / scale]);
     scores.push(bestS);
@@ -258,7 +261,7 @@ const server = http.createServer(async (req, res) => {
         tensor.dispose();
         const verdict = analyze(result);
         const faceBox = boxOf(result.face && result.face[0]);
-        const phones = objects.filter((o) => o.label === 'cell phone' && o.score > 0.5);
+        const phones = objects.filter((o) => o.label === 'cell phone' && o.score > 0.55);
         if (phones.length) {
           const nearFace = phones.some((p) => {
             const pb = p.box;
@@ -270,7 +273,9 @@ const server = http.createServer(async (req, res) => {
               const py = (pb[1] + pb[3]) / 2;
               const dx = Math.abs(fx - px);
               const dy = Math.abs(fy - py);
-              const reach = Math.max(faceBox.width * 1.2, faceBox.height * 1.2);
+              // Boundary: the phone must be within one face-size of the face
+              // center — anything further away is not "using" it.
+              const reach = Math.max(faceBox.width, faceBox.height) * 1.0;
               return dx < reach && dy < reach;
             }
             return true;

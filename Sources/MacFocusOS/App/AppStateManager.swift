@@ -90,6 +90,7 @@ final class AppStateManager: ObservableObject {
 
     var onRequestDashboard: (() -> Void)?
     var onRequestSettings: (() -> Void)?
+    var onRequestSetup: (() -> Void)?
     var onFreeTimeNotice: ((String, String) -> Void)?
     var onRequirePassword: ((String) -> Void)?
     private var lastScheduledType: ScheduleActivityType?
@@ -109,11 +110,20 @@ final class AppStateManager: ObservableObject {
         if attendanceEnabled {
             setupAttendance()
         }
-        // Focus mode is the whole point of the app: tracking is permanently on
-        // and a session is always running. The weekly schedule decides when the
-        // AI enforces focus and when it's free time.
+        // Focus mode is the whole point of the app: tracking is permanently on.
+        // A session auto-starts only once setup is complete (password, schedule,
+        // permissions, AI); otherwise the setup wizard walks the user through it.
         sessionManager.trackingEnabled = true
-        sessionManager.startSession()
+        if setupComplete {
+            sessionManager.startSession()
+        }
+        Task { [weak self] in
+            await self?.checkForUpdates()
+        }
+        let updateTimer = Timer(timeInterval: 4 * 3600, repeats: true) { [weak self] _ in
+            Task { [weak self] in await self?.checkForUpdates() }
+        }
+        RunLoop.main.add(updateTimer, forMode: .common)
         timer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
             self?.tick()
         }
@@ -587,7 +597,28 @@ final class AppStateManager: ObservableObject {
         return ok
     }
 
+    // MARK: - Setup gate
+
+    /// Everything the user must complete before a session can start:
+    /// password lock, at least one schedule block, screen + camera permission,
+    /// and a working AI configuration.
+    var setupComplete: Bool {
+        passwordSet
+            && !sessionManager.schedule.isEmpty
+            && ActivityMonitor.hasScreenCapturePermission
+            && PermissionManager.cameraGranted
+            && modelConfig.isConfigured
+    }
+
+    var scheduleCount: Int { sessionManager.schedule.count }
+
     // MARK: - Focus session
+
+    func startSession() {
+        guard setupComplete else { return }
+        sessionManager.startSession()
+        apply(sessionManager.snapshot(), animateXP: false)
+    }
 
     /// Focus mode is always on — the schedule drives enforcement. Kept only so
     /// legacy state can't leave tracking disabled.
@@ -875,6 +906,113 @@ final class AppStateManager: ObservableObject {
         return OllamaProvider(modelName: ollama.modelName, visionModel: resolved)
     }
 
+    // MARK: - Updates
+
+    @Published private(set) var latestVersion: String?
+    @Published private(set) var updateAssetURL: URL?
+    @Published private(set) var checkingUpdate = false
+    @Published private(set) var installingUpdate = false
+    /// Set right before the auto-update relaunches the app so the quit path
+    /// skips the password gate.
+    var skipPasswordForNextQuit = false
+
+    static let releasesURL = URL(string: "https://api.github.com/repos/aadityakumarsah/FocusMac/releases/latest")!
+    static let releasesPageURL = URL(string: "https://github.com/aadityakumarsah/FocusMac/releases")!
+
+    var currentVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0.0"
+    }
+
+    var updateAvailable: Bool { latestVersion != nil }
+
+    func checkForUpdates() async {
+        guard !checkingUpdate, !installingUpdate else { return }
+        checkingUpdate = true
+        defer { checkingUpdate = false }
+        do {
+            var request = URLRequest(url: Self.releasesURL)
+            request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+            request.timeoutInterval = 15
+            let (data, _) = try await URLSession.shared.data(for: request)
+            guard let release = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let tag = release["tag_name"] as? String else { return }
+            let version = tag.hasPrefix("v") ? String(tag.dropFirst()) : tag
+            guard Self.isVersion(version, newerThan: currentVersion) else {
+                latestVersion = nil
+                return
+            }
+            if let assets = release["assets"] as? [[String: Any]] {
+                for asset in assets where (asset["name"] as? String)?.hasSuffix(".zip") == true {
+                    if let urlStr = asset["browser_download_url"] as? URL {
+                        updateAssetURL = urlStr
+                    } else if let urlStr = asset["browser_download_url"] as? String, let url = URL(string: urlStr) {
+                        updateAssetURL = url
+                    }
+                }
+            }
+            latestVersion = version
+        } catch {
+            // Offline or rate-limited — silently retry on the next poll.
+        }
+    }
+
+    /// Downloads the release zip, swaps /Applications/FocusMac.app in place and
+    /// relaunches. The quit bypasses the password gate on purpose.
+    func installUpdate() async {
+        guard let url = updateAssetURL, !installingUpdate else { return }
+        installingUpdate = true
+        defer { installingUpdate = false }
+        let tmpDir = FileManager.default.temporaryDirectory.appendingPathComponent("FocusMacUpdate", isDirectory: true)
+        let zipURL = tmpDir.appendingPathComponent("FocusMac-update.zip")
+        let extractDir = tmpDir.appendingPathComponent("extracted")
+        do {
+            try? FileManager.default.removeItem(at: tmpDir)
+            try FileManager.default.createDirectory(at: extractDir, withIntermediateDirectories: true)
+            let (data, _) = try await URLSession.shared.data(from: url)
+            try data.write(to: zipURL)
+            try runProcess("/usr/bin/ditto", ["-x", "-k", zipURL.path, extractDir.path])
+            guard let newApp = (try? FileManager.default.contentsOfDirectory(atPath: extractDir.path))?
+                .first(where: { $0.hasSuffix(".app") }) else { return }
+            let src = extractDir.appendingPathComponent(newApp).path
+            let dst = "/Applications/FocusMac.app"
+            let old = "/Applications/FocusMac.old"
+            try? runProcess("/bin/rm", ["-rf", old])
+            if FileManager.default.fileExists(atPath: dst) {
+                try runProcess("/bin/mv", [dst, old])
+            }
+            try runProcess("/bin/mv", [src, dst])
+            try? runProcess("/usr/bin/xattr", ["-cr", dst])
+            try? runProcess("/bin/rm", ["-rf", old])
+            skipPasswordForNextQuit = true
+            try runProcess("/usr/bin/open", [dst])
+            exit(0)
+        } catch {
+            passwordMessage = "Update failed: \(error.localizedDescription)"
+        }
+    }
+
+    private func runProcess(_ path: String, _ args: [String]) throws -> Void {
+        let proc = Process()
+        proc.executableURL = URL(fileURLWithPath: path)
+        proc.arguments = args
+        try proc.run()
+        proc.waitUntilExit()
+        guard proc.terminationStatus == 0 else {
+            throw NSError(domain: "FocusMacUpdate", code: Int(proc.terminationStatus))
+        }
+    }
+
+    private static func isVersion(_ a: String, newerThan b: String) -> Bool {
+        let pa = a.split(separator: ".").compactMap { Int($0) }
+        let pb = b.split(separator: ".").compactMap { Int($0) }
+        for i in 0..<max(pa.count, pb.count) {
+            let x = i < pa.count ? pa[i] : 0
+            let y = i < pb.count ? pb[i] : 0
+            if x != y { return x > y }
+        }
+        return false
+    }
+
     // MARK: - State mirroring
 
     private func apply(_ snap: SessionSnapshot, animateXP: Bool) {
@@ -882,12 +1020,17 @@ final class AppStateManager: ObservableObject {
         trackingEnabled = sessionManager.trackingEnabled
         currentActivity = snap.activity
         classification = snap.classification
-        if snap.phase == .blocked {
-            blockedStreak += 1
+        let effectivePhase: DistractionPhase
+        if !sessionActive {
+            // Before the user starts a session (setup phase) the app only
+            // monitors — nothing is blocked and no alarms fire.
+            effectivePhase = .focused
+        } else if snap.phase == .blocked && blockedStreak < 2 {
+            effectivePhase = .focused
         } else {
-            blockedStreak = 0
+            effectivePhase = snap.phase
         }
-        let effectivePhase: DistractionPhase = (snap.phase == .blocked && blockedStreak < 2) ? .focused : snap.phase
+        blockedStreak = snap.phase == .blocked && sessionActive ? blockedStreak + 1 : 0
         phase = effectivePhase
         if effectivePhase != .blocked {
             lastCloseFeedback = nil

@@ -25,6 +25,9 @@ struct DashboardView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 header
+                if manager.updateAvailable {
+                    updateBanner
+                }
                 if manager.schedule.isEmpty {
                     scheduleFirstBanner
                 }
@@ -72,20 +75,62 @@ struct DashboardView: View {
     }
 
     private var sessionControl: some View {
-        HStack(spacing: 6) {
-            Circle()
-                .fill(palette.aligned)
-                .frame(width: 7, height: 7)
-            Text("FOCUS MODE — ALWAYS ON")
-                .font(.system(size: 9, weight: .bold))
-                .kerning(0.8)
-                .foregroundStyle(palette.aligned)
+        HStack(spacing: 8) {
+            if !manager.setupComplete {
+                Button("Complete Setup") {
+                    manager.onRequestSetup?()
+                }
+                .buttonStyle(FocusActionStyle(filled: true, tint: palette.warn))
+            } else if manager.sessionActive {
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(palette.aligned)
+                        .frame(width: 7, height: 7)
+                    Text("FOCUS MODE — ALWAYS ON")
+                        .font(.system(size: 9, weight: .bold))
+                        .kerning(0.8)
+                        .foregroundStyle(palette.aligned)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(Capsule().fill(palette.aligned.opacity(0.1)))
+                .overlay(Capsule().stroke(palette.aligned.opacity(0.3), lineWidth: 1))
+                .help("Focus mode runs whenever the app runs — your schedule decides when it enforces.")
+            } else {
+                Button("Start Session") {
+                    manager.startSession()
+                }
+                .buttonStyle(FocusActionStyle(filled: true, tint: palette.accent))
+            }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(Capsule().fill(palette.aligned.opacity(0.1)))
-        .overlay(Capsule().stroke(palette.aligned.opacity(0.3), lineWidth: 1))
-        .help("Focus mode runs whenever the app runs — your schedule decides when it enforces.")
+    }
+
+    private var updateBanner: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "arrow.down.circle.fill")
+                .font(.system(size: 14))
+                .foregroundStyle(palette.accent)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Update available — FocusMac \(manager.latestVersion ?? "")")
+                    .font(.system(size: 12.5, weight: .semibold))
+                    .foregroundStyle(palette.text)
+                Text("You're on \(manager.currentVersion). Install in one click — the app swaps itself and relaunches.")
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(palette.secondary)
+            }
+            Spacer()
+            if manager.installingUpdate {
+                ProgressView().controlSize(.small)
+            } else {
+                Button("Install Update") {
+                    Task { await manager.installUpdate() }
+                }
+                .buttonStyle(FocusActionStyle(filled: true, tint: palette.accent))
+            }
+        }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: 12).fill(palette.accent.opacity(0.08)))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(palette.accent.opacity(0.3), lineWidth: 1))
     }
 
     private var scheduleFirstBanner: some View {

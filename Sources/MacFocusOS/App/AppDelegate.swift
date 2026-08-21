@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import Dispatch
 import SwiftUI
 import MacFocusOSCore
 
@@ -39,6 +40,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         manager.onRequestSettings = { [weak self] in
             self?.showSettings()
+        }
+
+        manager.onRequestSetup = { [weak self] in
+            self?.showOnboarding()
         }
 
         manager.onFreeTimeNotice = { [weak self] title, message in
@@ -81,21 +86,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             }
             .store(in: &cancellables)
 
-        // First launch: ask for every permission up front so macOS never
-        // interrupts mid-session later.
-        if manager.needsPermissionOnboarding {
-            let screenGranted = PermissionManager.screenGranted
-            let cameraGranted = PermissionManager.cameraGranted
-            if screenGranted && cameraGranted {
-                manager.markPermissionsRequested()
-                PermissionManager.primeAutomation()
-            } else {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
-                    self?.showOnboarding()
-                }
+        // First launch / incomplete setup: walk through the wizard (password,
+        // schedule, one-click permissions, AI key) before a session can start.
+        if !manager.setupComplete {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+                self?.showOnboarding()
             }
         }
+
+        setupSignalHandling()
     }
+
+    /// Terminal kills (`kill <pid>`, Ctrl-C) must go through the same password
+    /// gate as menu quits. Routing SIGTERM/SIGINT into NSApp.terminate makes
+    /// applicationShouldTerminate run first; only SIGKILL is unstoppable.
+    private func setupSignalHandling() {
+        for sig in [SIGTERM, SIGINT, SIGHUP] {
+            signal(sig, SIG_IGN)
+            let source = DispatchSource.makeSignalSource(signal: sig, queue: .main)
+            source.setEventHandler {
+                NSApp.terminate(nil)
+            }
+            source.resume()
+            signalSources.append(source)
+        }
+    }
+
+    private var signalSources: [DispatchSourceProtocol] = []
 
     private func showOnboarding() {
         if let window = onboardingWindow {
@@ -114,10 +131,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         window.delegate = self
         window.contentView = NSHostingView(rootView: OnboardingView(
             onFinish: { [weak self] in
-                self?.manager.markPermissionsRequested()
                 self?.onboardingWindow?.close()
                 self?.showDashboard()
-            }
+            },
+            manager: manager
         ))
         window.center()
         onboardingWindow = window
@@ -246,6 +263,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let settingsItem = NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
         settingsItem.keyEquivalentModifierMask = [.command]
         menu.addItem(settingsItem)
+        menu.addItem(NSMenuItem(title: "Check for Updates…", action: #selector(checkUpdates), keyEquivalent: "u"))
+        menu.items.last?.keyEquivalentModifierMask = [.command]
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit FocusMac", action: #selector(quitApp), keyEquivalent: "q"))
         item.menu = menu
@@ -321,7 +340,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        if quitApproved {
+        if quitApproved || manager.skipPasswordForNextQuit {
             return .terminateNow
         }
         if manager.passwordSet, manager.passwordLocked {
@@ -386,6 +405,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         showSettings()
     }
 
+    @objc private func checkUpdates() {
+        Task {
+            await manager.checkForUpdates()
+            if manager.updateAvailable {
+                showDashboard()
+            }
+        }
+    }
+
     @objc private func quitApp() {
         NSApp.terminate(nil)
     }
@@ -394,16 +422,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     /// Closing the password prompt with the ✕ button must cancel whatever was
     /// pending (including a quit request) — otherwise a later successful unlock
-    /// could terminate the app during an unrelated action. Closing onboarding
-    /// marks permissions as handled so it never nags again.
+    /// could terminate the app during an unrelated action. Closing the setup
+    /// wizard early keeps setup incomplete so it reopens on next launch.
     func windowWillClose(_ notification: Notification) {
         guard let panel = notification.object as? NSWindow else { return }
         if let passwordPanel, panel == passwordPanel {
             quitRequested = false
             manager.cancelPendingProtectedAction()
-        }
-        if let onboardingWindow, panel == onboardingWindow {
-            manager.markPermissionsRequested()
         }
     }
 }
