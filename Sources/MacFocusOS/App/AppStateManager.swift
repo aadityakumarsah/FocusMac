@@ -212,7 +212,16 @@ final class AppStateManager: ObservableObject {
     }
 
     private func setupAttendance() {
-        HumanServiceManager.ensureRunning()
+        // Starting the local vision process can take a few seconds on its
+        // first launch. Never make the setup wizard or dashboard wait for it.
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let started = HumanServiceManager.ensureRunning()
+            guard !started else { return }
+            DispatchQueue.main.async {
+                guard let self, self.attendanceEnabled else { return }
+                self.attendanceStatus = "⚠ Phone detection service unavailable"
+            }
+        }
         attendanceLog = sessionManager.store.state.attendanceLog
         mouseIdleEvents = sessionManager.store.state.mouseIdleEvents
         refreshMouseStats()
@@ -309,10 +318,10 @@ final class AppStateManager: ObservableObject {
         var problem: String?
         if !verdict.person {
             problem = "You left the desk"
-        } else if verdict.lookingAway {
-            problem = "Looking away from the screen"
         } else if verdict.phoneUse {
             problem = "Looks like you're on your phone"
+        } else if verdict.lookingAway {
+            problem = "Looking away from the screen"
         }
         let quietNow = inQuietBlockNow
         if let problem {

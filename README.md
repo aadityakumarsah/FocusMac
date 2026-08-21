@@ -128,14 +128,19 @@ Measured on Apple M2 Pro, macOS 15, release build (`-c release`), 8-hour workday
 
 ## 🚀 Install
 
-**From terminal (recommended):**
+**One line — paste into Terminal:**
 
 ```bash
-git clone https://github.com/aadityakumarsah/FocusMac.git
-cd FocusMac && ./scripts/install.sh
+curl -fsSL https://raw.githubusercontent.com/aadityakumarsah/FocusMac/main/scripts/remote-install.sh | bash
 ```
 
-Or download from [Releases](https://github.com/aadityakumarsah/FocusMac/releases), unzip, and drag **FocusMac.app** to Applications.
+That's it. It downloads the latest release, installs it to /Applications and launches it — no cloning, no dragging.
+
+Prefer drag-and-drop?
+
+```bash
+curl -L -o ~/Downloads/FocusMac.dmg https://github.com/aadityakumarsah/FocusMac/releases/latest/download/FocusMac.dmg && open ~/Downloads/FocusMac.dmg
+```
 
 First launch opens a **5-step setup wizard**: set your lock password → add your weekly schedule → one-click permissions → paste your AI key → Start Session. After that, sessions auto-start on every launch and macOS never asks for anything again.
 

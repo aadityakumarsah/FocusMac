@@ -21,7 +21,7 @@ export default function App() {
   const onCopy = () => copyInstall(setToast);
 
   return (
-    <div className="site">
+    <div className="app">
       <Header />
       <ScrollManager />
       <main>

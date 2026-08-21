@@ -3,14 +3,19 @@ import CoreGraphics
 import Foundation
 
 final class LiveVideoMonitor {
+    /// Keep the input resolution used by the local phone/face models.  The
+    /// preview is deliberately lower-rate, not lower-resolution, so a phone
+    /// near the face stays detectable without making the dashboard janky.
     let width = 640
     let height = 480
+    private let previewFramesPerSecond = 6
     private var process: Process?
     private var running = false
     private var stopping = false
     private var retryTimer: Timer?
     private var failureCount = 0
     private var buffer = Data()
+    private var lastDeliveredFrameAt = Date.distantPast
     var onFrame: ((CGImage) -> Void)?
     var onFailure: (() -> Void)?
 
@@ -28,7 +33,11 @@ final class LiveVideoMonitor {
         proc.arguments = [
             "-loglevel", "error",
             "-f", "avfoundation",
-            "-framerate", "30",
+            // Publishing 30 uncompressed 640×480 frames every second costs
+            // needless CPU and forces 30 SwiftUI redraws. Six frames is still
+            // comfortably live in the floating preview, while the latest one
+            // is always ready for an on-demand attendance check.
+            "-framerate", "\(previewFramesPerSecond)",
             "-video_size", "\(width)x\(height)",
             "-pix_fmt", "nv12",
             "-i", "0",
@@ -49,6 +58,7 @@ final class LiveVideoMonitor {
         }
         process = proc
         buffer.removeAll()
+        lastDeliveredFrameAt = .distantPast
         let fh = pipe.fileHandleForReading
         fh.readabilityHandler = { [weak self] handle in
             let chunk = handle.availableData
@@ -64,8 +74,16 @@ final class LiveVideoMonitor {
             while self.buffer.count >= self.frameSize {
                 let frameData = self.buffer.prefix(self.frameSize)
                 self.buffer.removeFirst(self.frameSize)
+                let now = Date()
+                guard now.timeIntervalSince(self.lastDeliveredFrameAt) >= 1.0 / Double(self.previewFramesPerSecond) else {
+                    continue
+                }
+                self.lastDeliveredFrameAt = now
                 if let image = Self.image(from: frameData, width: self.width, height: self.height) {
                     DispatchQueue.main.async {
+                        // A queued frame from a process that has already
+                        // stopped must not revive an old preview.
+                        guard self.running else { return }
                         self.onFrame?(image)
                     }
                 }
@@ -83,7 +101,7 @@ final class LiveVideoMonitor {
     }
 
     private func killStaleFFmpeg() {
-        let marker = "avfoundation -framerate 30 -video_size 640x480"
+        let marker = "avfoundation -framerate \(previewFramesPerSecond) -video_size \(width)x\(height)"
         let ps = Process()
         ps.executableURL = URL(fileURLWithPath: "/bin/ps")
         ps.arguments = ["-eo", "pid=,ppid=,command="]

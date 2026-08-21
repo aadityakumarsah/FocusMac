@@ -4,158 +4,101 @@ export const RELEASES_URL = "https://github.com/aadityakumarsah/FocusMac/release
 export const installCommand =
   "git clone https://github.com/aadityakumarsah/FocusMac.git && cd FocusMac && ./scripts/install.sh";
 
-export const navLinks = [
+export const nav = [
   { to: "/features", label: "Features" },
   { to: "/how-it-works", label: "How it works" },
   { to: "/install", label: "Install" },
 ];
 
-export const stats = [
-  { value: "<1.5%", label: "Idle CPU" },
-  { value: "~85MB", label: "Memory" },
-  { value: "<1ms", label: "Rule classify" },
+export const proof = [
+  { value: "< 1.5%", label: "idle CPU" },
+  { value: "~85 MB", label: "memory" },
+  { value: "< 1 ms", label: "rule path" },
   { value: "98%", label: "AI precision" },
 ];
 
-export const pillars = [
+export const stories = [
   {
-    n: "01",
-    title: "Schedule decides the boundary",
-    text: "Set study, work, free time, meals, and sleep once. FocusMac enforces during deep blocks and stays quiet when you’re free.",
+    tag: "Schedule",
+    title: "Your week writes the rules.",
+    text: "Study, work, free time, meals, sleep — set once. FocusMac guards during deep blocks and disappears when you’re free.",
   },
   {
-    n: "02",
-    title: "AI understands what you’re doing",
-    text: "Rules catch the obvious in under a millisecond. Ambiguous titles go to an LLM. Optional vision reads the screen when a title isn’t enough.",
+    tag: "Intelligence",
+    title: "It knows what you’re doing.",
+    text: "Rules classify in under a millisecond. Ambiguous titles hit an LLM. Optional vision reads the screen when titles aren’t enough.",
   },
   {
-    n: "03",
-    title: "Camera verifies you’re actually there",
-    text: "Local YOLO phone detection, presence, and attention checks. Frames never leave your Mac. Yellow means put the phone down.",
+    tag: "Attendance",
+    title: "Present. Eyes up. No phone.",
+    text: "Local YOLO checks stay on your Mac. Green means attentive. Amber means put it down. Problems trigger a 10-second alarm you can’t mute.",
   },
   {
-    n: "04",
-    title: "A lock you can’t casually undo",
-    text: "Focus mode stays on. Quit, pause, and camera-off need your password — SHA-256, no recovery backdoor. Lifelines give honest, timed escapes.",
-  },
-];
-
-export const features = [
-  {
-    title: "Activity classification",
-    text: "Frontmost app and window title every 2 seconds — focused, warning, or blocked.",
-  },
-  {
-    title: "Semantic AI + cache",
-    text: "Ollama, Claude, OpenAI, Gemini, Groq, and more. 500-entry cache keeps repeats free.",
-  },
-  {
-    title: "Vision mode",
-    text: "Optional frontmost-window capture (~60s) so the model sees what titles miss.",
-  },
-  {
-    title: "Blocking overlay",
-    text: "Full-screen interruption with one-click close tab or go back.",
-  },
-  {
-    title: "Browser tab scan",
-    text: "Chrome, Brave, Arc, Edge, Safari — social and distracting tabs get caught.",
-  },
-  {
-    title: "Media pause",
-    text: "Background music and video pause when they become a distraction.",
-  },
-  {
-    title: "Attendance panel",
-    text: "Green attentive, amber phone, orange looking away, red left desk.",
-  },
-  {
-    title: "XP & focus score",
-    text: "Daily, session, and lifetime XP with a 0–100 score and weekly reports.",
-  },
-  {
-    title: "10-second alarm",
-    text: "Continuous, non-mutable, self-stopping when a problem is detected.",
-  },
-  {
-    title: "Menu bar control",
-    text: "Dashboard, session start/stop, settings, and quit — always one click away.",
-  },
-  {
-    title: "Local persistence",
-    text: "State in Application Support. Keys stay on your Mac.",
-  },
-  {
-    title: "Open source MIT",
-    text: "Build from source or install from Terminal. No account required.",
+    tag: "Lock",
+    title: "Built so you can’t cheat.",
+    text: "Focus stays on. Quit, pause, and camera-off need your password. SHA-256. No recovery backdoor. Lifelines for honest breaks.",
   },
 ];
 
-export const steps = [
-  {
-    n: "1",
-    title: "Copy the install command",
-    text: "One click puts clone + install on your clipboard.",
-  },
-  {
-    n: "2",
-    title: "Paste into Terminal",
-    text: "FocusMac builds and lands in /Applications.",
-  },
-  {
-    n: "3",
-    title: "Finish the 5-step wizard",
-    text: "Password → schedule → permissions → AI key → start session.",
-  },
+export const featureList = [
+  ["Activity classification", "Focused / warning / blocked every 2 seconds"],
+  ["Semantic AI + cache", "500-entry cache · Ollama or cloud providers"],
+  ["Vision analysis", "Optional screen reads ~every 60s"],
+  ["Blocking overlay", "Full-screen stop with close tab / go back"],
+  ["Browser scan", "Chrome, Brave, Arc, Edge, Safari"],
+  ["Media pause", "Distracting audio/video gets paused"],
+  ["Camera attendance", "Person · gaze · phone — all local"],
+  ["XP & score", "Daily, session, lifetime · 0–100 ring"],
+  ["Menu bar app", "Start, stop, dashboard, quit"],
+  ["Password lock", "Quit protection that actually sticks"],
+  ["Reports", "Distraction + attendance history"],
+  ["Open source", "MIT · no account · macOS 13+"],
 ];
 
-export const setupWizard = [
-  { n: "01", title: "Lock password", text: "Protects quit, pause, and camera-off." },
-  { n: "02", title: "Weekly schedule", text: "Study, work, meals, breaks, sleep — once." },
-  { n: "03", title: "Permissions", text: "Screen Recording, Camera, browser automation." },
-  { n: "04", title: "AI provider", text: "Ollama local or paste any supported API key." },
-  { n: "05", title: "Start session", text: "After that, sessions follow your schedule." },
+export const flow = [
+  { title: "Snapshot", text: "App, window title, site, media state." },
+  { title: "Classify", text: "Rules first. LLM when needed. Vision optional." },
+  { title: "Enforce", text: "Warn → alarm → block → close tabs." },
+  { title: "Verify", text: "Camera + idle confirm you’re working." },
 ];
 
-export const loop = [
-  { title: "Snapshot", text: "App, title, site, media — every 2 seconds." },
-  { title: "Classify", text: "Rules first. LLM only when needed. Vision optional." },
-  { title: "Enforce", text: "Warning → alarm → block + close tabs." },
-  { title: "Verify", text: "Camera + idle tracking confirm you’re working." },
-];
-
-export const benchmarks = [
-  { metric: "Idle CPU", value: "< 1.5%" },
-  { metric: "Peak CPU", value: "~4%" },
-  { metric: "Memory", value: "~85 MB" },
-  { metric: "Cold start", value: "< 1.5 s" },
-  { metric: "Rule path", value: "< 1 ms" },
-  { metric: "Cache hits", value: "> 80%" },
+export const wizard = [
+  ["01", "Lock password", "Protects quit, pause, camera-off."],
+  ["02", "Weekly schedule", "The boundary for the whole week."],
+  ["03", "Permissions", "Screen, camera, browser — once."],
+  ["04", "AI brain", "Ollama offline or any supported key."],
+  ["05", "Start session", "Then it follows your schedule."],
 ];
 
 export const faq = [
-  {
-    q: "Where does my data live?",
-    a: "On your Mac. Camera frames for attendance are processed locally. AI keys stay in Application Support.",
-  },
-  {
-    q: "Do I need an API key?",
-    a: "Rules work without one. For semantic titles use Ollama offline or Anthropic, OpenAI, Gemini, Groq, DeepSeek, Kimi, or OpenRouter.",
-  },
-  {
-    q: "Can I turn focus mode off?",
-    a: "While FocusMac runs, focus stays on. Quitting or disabling camera checks requires your lock password.",
-  },
-  {
-    q: "What if I forget the password?",
-    a: "There is no recovery backdoor. Change it only with the current password, or contact the developer if locked out.",
-  },
-  {
-    q: "Does free time get blocked?",
-    a: "No. Free time, meals, breaks, and sleep are respected — no overlay, no XP penalties.",
-  },
-  {
-    q: "Is it free?",
-    a: "Yes. MIT open source on GitHub. Install from Terminal or grab a release build.",
-  },
+  [
+    "Where does my data live?",
+    "On your Mac. Camera frames for attendance never leave for cloud YOLO. Keys stay in Application Support.",
+  ],
+  [
+    "Do I need an API key?",
+    "Rules work alone. For semantic titles use Ollama offline or Anthropic, OpenAI, Gemini, Groq, DeepSeek, Kimi, OpenRouter.",
+  ],
+  [
+    "Can I turn focus off?",
+    "While FocusMac runs, focus stays on. Quitting or disabling camera checks requires your lock password.",
+  ],
+  [
+    "Forgot the password?",
+    "No recovery backdoor. Change only with the current password, or contact the developer if locked out.",
+  ],
+  [
+    "Is free time blocked?",
+    "No. Free time, meals, breaks, and sleep are respected.",
+  ],
+  ["Is it free?", "Yes. MIT on GitHub. Terminal install or Releases."],
+];
+
+export const benches = [
+  ["Idle CPU", "< 1.5%"],
+  ["Peak CPU", "~4%"],
+  ["Memory", "~85 MB"],
+  ["Cold start", "< 1.5 s"],
+  ["Cache hits", "> 80%"],
+  ["Tab close", "< 600 ms"],
 ];

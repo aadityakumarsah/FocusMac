@@ -22,11 +22,11 @@ struct AttendanceLivePanelView: View {
         if !v.person {
             return VerdictStyle(tint: palette.misaligned, icon: "person.crop.circle.badge.xmark", title: "You left the desk", subtitle: "No person in frame")
         }
-        if v.lookingAway {
-            return VerdictStyle(tint: Theme.warn, icon: "eye.slash", title: "Looking away", subtitle: "Eyes not on the screen")
-        }
         if v.phoneUse {
             return VerdictStyle(tint: Theme.gold, icon: "iphone.gen3", title: "Phone detected!", subtitle: "Put the phone down and focus")
+        }
+        if v.lookingAway {
+            return VerdictStyle(tint: Theme.warn, icon: "eye.slash", title: "Looking away", subtitle: "Eyes not on the screen")
         }
         var sim = ""
         if let s = v.similarity {
@@ -46,9 +46,9 @@ struct AttendanceLivePanelView: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
                 Circle()
-                    .fill(palette.misaligned)
+                    .fill(verdictStyle.tint)
                     .frame(width: 9, height: 9)
-                    .shadow(color: palette.misaligned, radius: 5)
+                    .shadow(color: verdictStyle.tint, radius: 5)
                 Text("ATTENDANCE LIVE")
                     .font(.system(size: 11, weight: .bold))
                     .kerning(0.8)

@@ -98,25 +98,24 @@ async function yoloDetect(tensor) {
   const outName = yoloSession.outputNames[0];
   const pred = out[outName].data;
   const dims = out[outName].dims;
-  const nch = dims[1];
   const npred = dims[2];
-  const nc = nch - 4;
+  // The focus app only needs to know whether a *cell phone* is near the
+  // person's face. Scoring all 80 COCO classes and running NMS on every
+  // object wastes most of the inference time and can make the live panel
+  // stutter. COCO's cell-phone class is 67.
+  const PHONE_CLASS = 67;
 
   const boxes = [], scores = [], labels = [];
   for (let i = 0; i < npred; i++) {
-    let best = -1, bestS = 0;
-    for (let c = 0; c < nc; c++) {
-      // YOLOv8 ONNX export already emits sigmoided class probabilities in
-      // [0,1] — applying another sigmoid here maps every score into the
-      // 0.5–0.73 band and floods the result with thousands of false hits.
-      const s = pred[(4 + c) * npred + i];
-      if (s > bestS) { bestS = s; best = c; }
-    }
-    if (bestS < 0.45) continue;
+    // YOLOv8 ONNX export already emits sigmoided class probabilities in
+    // [0,1] — applying another sigmoid here maps every score into the
+    // 0.5–0.73 band and floods the result with thousands of false hits.
+    const score = pred[(4 + PHONE_CLASS) * npred + i];
+    if (score < 0.45) continue;
     const cx = pred[i], cy = pred[npred + i], w = pred[2 * npred + i], h = pred[3 * npred + i];
     boxes.push([(cx - w / 2 - padX) / scale, (cy - h / 2 - padY) / scale, (cx + w / 2 - padX) / scale, (cy + h / 2 - padY) / scale]);
-    scores.push(bestS);
-    labels.push(best);
+    scores.push(score);
+    labels.push(PHONE_CLASS);
   }
 
   const order = boxes.map((_, i) => i).sort((a, b) => scores[b] - scores[a]);

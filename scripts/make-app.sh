@@ -14,6 +14,12 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN_DIR/MacFocusOS" "$APP/Contents/MacOS/FocusMac"
 cp "Resources/Info.plist" "$APP/Contents/Info.plist"
 cp "Resources/FocusMac.icns" "$APP/Contents/Resources/FocusMac.icns"
+# The phone/attendance detector ships as a real directory inside the bundle so
+# installed apps are fully self-contained (node_modules includes the native
+# tfjs/onnxruntime bindings; models add ~40MB). Build/sign get slower — that's
+# the price of a working drag-and-drop install.
+rm -rf "$APP/Contents/Resources/human-service"
+COPYFILE_DISABLE=1 ditto "human-service" "$APP/Contents/Resources/human-service"
 
 find "$APP" -name ".DS_Store" -delete
 xattr -cr "$APP"
