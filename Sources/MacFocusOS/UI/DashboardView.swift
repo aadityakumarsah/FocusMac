@@ -25,6 +25,9 @@ struct DashboardView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 header
+                if manager.schedule.isEmpty {
+                    scheduleFirstBanner
+                }
                 nowCard
                 scheduleCard
                 sessionCard
@@ -56,7 +59,7 @@ struct DashboardView: View {
     private var header: some View {
         HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Mac Focus OS")
+                Text("FocusMac")
                     .font(.system(size: 22, weight: .bold))
                     .foregroundStyle(palette.text)
                 Text("An AI that guards your attention around your goals and schedule.")
@@ -69,27 +72,41 @@ struct DashboardView: View {
     }
 
     private var sessionControl: some View {
-        HStack(spacing: 8) {
-            if manager.sessionActive {
-                Button("End Session") {
-                    manager.endSession()
-                }
-                .buttonStyle(FocusActionStyle(filled: true, tint: palette.misaligned))
-            } else {
-                Button("Start Session") {
-                    manager.startSession()
-                }
-                .buttonStyle(FocusActionStyle(filled: true, tint: palette.accent))
-            }
-            Toggle("Tracking", isOn: Binding(
-                get: { manager.trackingEnabled },
-                set: { manager.setTracking($0) }
-            ))
-            .toggleStyle(.switch)
-            .controlSize(.small)
-            .labelsHidden()
-            .help("Activity tracking on/off")
+        HStack(spacing: 6) {
+            Circle()
+                .fill(palette.aligned)
+                .frame(width: 7, height: 7)
+            Text("FOCUS MODE — ALWAYS ON")
+                .font(.system(size: 9, weight: .bold))
+                .kerning(0.8)
+                .foregroundStyle(palette.aligned)
         }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Capsule().fill(palette.aligned.opacity(0.1)))
+        .overlay(Capsule().stroke(palette.aligned.opacity(0.3), lineWidth: 1))
+        .help("Focus mode runs whenever the app runs — your schedule decides when it enforces.")
+    }
+
+    private var scheduleFirstBanner: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "calendar.badge.plus")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(palette.accent)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Add your schedule to activate focus mode")
+                    .font(.system(size: 12.5, weight: .semibold))
+                    .foregroundStyle(palette.text)
+                Text("The app analyses your whole weekly schedule and automatically enforces focus during work/study blocks — and stays out of the way during free time, breaks and meals.")
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(palette.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer()
+        }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: 12).fill(palette.accent.opacity(0.08)))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(palette.accent.opacity(0.3), lineWidth: 1))
     }
 
     private var nowCard: some View {
@@ -159,7 +176,7 @@ struct DashboardView: View {
             Image(systemName: "rectangle.badge.record")
                 .font(.system(size: 11))
                 .foregroundStyle(palette.misaligned)
-            Text("Screen Recording permission is OFF — window titles can't be read, so nothing can be detected. Allow Mac Focus OS in System Settings → Privacy & Security → Screen Recording, then click here to recheck.")
+            Text("Screen Recording permission is OFF — window titles can't be read, so nothing can be detected. Allow FocusMac in System Settings → Privacy & Security → Screen Recording, then click here to recheck.")
                 .font(.system(size: 10))
                 .foregroundStyle(palette.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -194,10 +211,10 @@ struct DashboardView: View {
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(palette.secondary)
             }
-            Text(manager.trackingEnabled ? "LIVE" : "TRACKING OFF")
+            Text("LIVE")
                 .font(.system(size: 8.5, weight: .bold))
                 .kerning(0.6)
-                .foregroundStyle(manager.trackingEnabled ? palette.aligned : palette.warn)
+                .foregroundStyle(palette.aligned)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
@@ -937,7 +954,7 @@ struct DashboardView: View {
             HStack(spacing: 14) {
                 StatCell(label: "CHECKS", value: "\(checksToday)", tint: palette.text, palette: palette)
                 StatCell(label: "DISTRACTED", value: "\(distractedToday)", tint: palette.misaligned, palette: palette)
-                StatCell(label: "MOUSE IDLE", value: "\(manager.mouseIdleCount)", tint: .yellow, palette: palette)
+                StatCell(label: "MOUSE IDLE", value: "\(manager.mouseIdleCount)", tint: Theme.gold, palette: palette)
             }
         }
         .padding(16)
@@ -954,7 +971,7 @@ struct DashboardView: View {
             .font(.system(size: 10))
             .foregroundStyle(palette.secondary)
             Spacer()
-            Button("Quit Mac Focus OS") {
+            Button("Quit FocusMac") {
                 NSApp.terminate(nil)
             }
             .buttonStyle(.plain)

@@ -17,6 +17,7 @@ let package = Package(
             name: "MacFocusOS",
             dependencies: ["MacFocusOSCore"],
             path: "Sources/MacFocusOS",
+            resources: [.copy("Resources")],
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
         .testTarget(

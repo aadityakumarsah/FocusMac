@@ -63,7 +63,7 @@ public enum Prompts {
 
     public static func visionPrompt(goalTitle: String, context: String) -> String {
         """
-        You are Mac Focus OS, an attention manager. The user's goal is: \(goalTitle)
+        You are FocusMac, an attention manager. The user's goal is: \(goalTitle)
         Context: \(context)
 
         Look at the screenshot of what is on their screen and decide whether it helps that goal.
@@ -103,7 +103,7 @@ public enum ProviderFactory {
                 displayName: "OpenRouter",
                 extraHeaders: [
                     "HTTP-Referer": "https://macfocusos.app",
-                    "X-Title": "Mac Focus OS"
+                    "X-Title": "FocusMac"
                 ]
             )
         case .opencode:
@@ -318,7 +318,7 @@ public final class OpenAIProvider: ModelProviding {
             "model": model,
             "max_tokens": 250,
             "messages": [
-                ["role": "system", "content": "You are Mac Focus OS, an attention manager."],
+                ["role": "system", "content": "You are FocusMac, an attention manager."],
                 ["role": "user", "content": content]
             ]
         ]

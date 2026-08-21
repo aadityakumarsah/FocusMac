@@ -360,7 +360,7 @@ struct SettingsView: View {
                 }
             }
             if visionEnabled {
-                Text("Every ~60 seconds during a focus session, the app captures the frontmost window and asks the vision model to classify what you're actually consuming. If macOS asks for Screen Recording permission, allow it for Mac Focus OS in System Settings → Privacy & Security → Screen Recording.")
+                Text("Every ~60 seconds during a focus session, the app captures the frontmost window and asks the vision model to classify what you're actually consuming. If macOS asks for Screen Recording permission, allow it for FocusMac in System Settings → Privacy & Security → Screen Recording.")
                     .font(.system(size: 10))
                     .foregroundStyle(palette.secondary.opacity(0.8))
                     .fixedSize(horizontal: false, vertical: true)
@@ -514,7 +514,7 @@ struct SettingsView: View {
                     .font(.system(size: 10.5, weight: .medium))
                     .foregroundStyle(passwordMessageIsError ? palette.misaligned : palette.aligned)
             }
-            Text("Once a password is set it is stored forever and can never be removed — only changed with the current password. Quitting the app, turning focus mode off, pausing, and disabling the camera check all require it. The password cannot be recovered — do not forget it.")
+            Text("Once a password is set it is stored forever and can never be removed — only changed with the current password. Quitting the app and disabling the camera check require it. There is no recovery: if you forget it, contact the developer.")
                 .font(.system(size: 10))
                 .foregroundStyle(palette.secondary.opacity(0.8))
                 .fixedSize(horizontal: false, vertical: true)

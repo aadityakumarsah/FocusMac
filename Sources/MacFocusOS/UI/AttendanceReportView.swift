@@ -64,8 +64,8 @@ struct AttendanceReportView: View {
                 StatCell(label: "CHECKS", value: "\(today.count)", tint: palette.text, palette: palette)
                 StatCell(label: "DISTRACTED", value: "\(distracted.count)", tint: palette.misaligned, palette: palette)
                 StatCell(label: "FOCUSED", value: "\(today.count - distracted.count)", tint: palette.aligned, palette: palette)
-                StatCell(label: "MOUSE IDLE", value: "\(todayMouseIdle.count)", tint: .yellow, palette: palette)
-                StatCell(label: "IDLE MINUTES", value: String(format: "%.0f", todayMouseIdle.reduce(0) { $0 + $1.duration } / 60), tint: .yellow, palette: palette)
+                StatCell(label: "MOUSE IDLE", value: "\(todayMouseIdle.count)", tint: Theme.gold, palette: palette)
+                StatCell(label: "IDLE MINUTES", value: String(format: "%.0f", todayMouseIdle.reduce(0) { $0 + $1.duration } / 60), tint: Theme.gold, palette: palette)
             }
             checksTimeline
             quietCard
@@ -171,19 +171,19 @@ struct AttendanceReportView: View {
                     HStack(spacing: 10) {
                         Image(systemName: "mouse.fill")
                             .font(.system(size: 11))
-                            .foregroundStyle(.yellow)
+                            .foregroundStyle(Theme.gold)
                         Text("\(event.start.formatted(date: .omitted, time: .shortened)) – \(event.end.formatted(date: .omitted, time: .shortened))")
                             .font(.system(size: 11))
                             .foregroundStyle(palette.text)
                         GeometryReader { geo in
                             RoundedRectangle(cornerRadius: 3)
-                                .fill(Color.yellow.opacity(0.85))
+                                .fill(Theme.gold.opacity(0.85))
                                 .frame(width: max(8, geo.size.width * event.duration / maxDur))
                         }
                         .frame(height: 10)
                         Text(Format.duration(event.duration))
                             .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(.yellow)
+                            .foregroundStyle(Theme.gold)
                             .frame(width: 60, alignment: .trailing)
                     }
                 }

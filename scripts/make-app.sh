@@ -6,13 +6,14 @@ cd "$(dirname "$0")/.."
 swift build -c release
 
 BIN_DIR=$(swift build -c release --show-bin-path)
-APP="build/MacFocusOS.app"
+APP="build/FocusMac.app"
 
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
-cp "$BIN_DIR/MacFocusOS" "$APP/Contents/MacOS/MacFocusOS"
+cp "$BIN_DIR/MacFocusOS" "$APP/Contents/MacOS/FocusMac"
 cp "Resources/Info.plist" "$APP/Contents/Info.plist"
+cp "Resources/FocusMac.icns" "$APP/Contents/Resources/FocusMac.icns"
 
 find "$APP" -name ".DS_Store" -delete
 xattr -cr "$APP"

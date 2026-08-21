@@ -23,10 +23,10 @@ struct AttendanceLivePanelView: View {
             return VerdictStyle(tint: palette.misaligned, icon: "person.crop.circle.badge.xmark", title: "You left the desk", subtitle: "No person in frame")
         }
         if v.lookingAway {
-            return VerdictStyle(tint: .orange, icon: "eye.slash", title: "Looking away", subtitle: "Eyes not on the screen")
+            return VerdictStyle(tint: Theme.warn, icon: "eye.slash", title: "Looking away", subtitle: "Eyes not on the screen")
         }
         if v.phoneUse {
-            return VerdictStyle(tint: .yellow, icon: "iphone.gen3", title: "Phone detected!", subtitle: "Put the phone down and focus")
+            return VerdictStyle(tint: Theme.gold, icon: "iphone.gen3", title: "Phone detected!", subtitle: "Put the phone down and focus")
         }
         var sim = ""
         if let s = v.similarity {
@@ -97,7 +97,7 @@ struct AttendanceLivePanelView: View {
                 stat("CHECKS", "\(stats.checks)", palette.text)
                 stat("DISTRACTED", "\(stats.distracted)", stats.distracted > 0 ? palette.misaligned : palette.text)
                 stat("FOCUSED", "\(stats.focused)", palette.aligned)
-                stat("MOUSE IDLE", manager.mouseIdleCount > 0 ? "\(manager.mouseIdleCount)" : "0", manager.mouseIdleCount > 0 ? .yellow : palette.text)
+                stat("MOUSE IDLE", manager.mouseIdleCount > 0 ? "\(manager.mouseIdleCount)" : "0", manager.mouseIdleCount > 0 ? Theme.gold : palette.text)
             }
             Text("Mouse idle today: \(String(format: "%.0f", manager.mouseIdleMinutes)) min · no mouse for 3+ min = logged")
                 .font(.system(size: 9.5))

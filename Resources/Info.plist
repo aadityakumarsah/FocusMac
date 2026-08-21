@@ -5,30 +5,32 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleExecutable</key>
-	<string>MacFocusOS</string>
+	<string>FocusMac</string>
+	<key>CFBundleIconFile</key>
+	<string>FocusMac</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.macfocusos.app</string>
+	<string>com.focusmac.app</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>Mac Focus OS</string>
+	<string>FocusMac</string>
 	<key>CFBundleDisplayName</key>
-	<string>Mac Focus OS</string>
+	<string>FocusMac</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.1.0</string>
+	<string>1.1.0</string>
 	<key>CFBundleVersion</key>
-	<string>1</string>
+	<string>2</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>13.0</string>
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Mac Focus OS uses the camera to check your attendance and attentiveness during focus sessions.</string>
+	<string>FocusMac uses the camera to check your attendance and attentiveness during focus sessions.</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>
-	<string>Copyright © 2026 Mac Focus OS</string>
+	<string>Copyright © 2026 FocusMac</string>
 </dict>
 </plist>

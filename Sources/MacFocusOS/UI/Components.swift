@@ -22,11 +22,11 @@ struct ActivityDot: View {
     }
 
     private var color: Color {
-        if paused { return Color.gray.opacity(0.7) }
+        if paused { return Color(hex: 0xB9A6AD).opacity(0.7) }
         switch phase {
-        case .focused: return Color(hex: 0x4FC08A)
-        case .warning: return Color(hex: 0xE3B341)
-        case .blocked: return Color(hex: 0xE56B6B)
+        case .focused: return Color(hex: 0x5F9E82)
+        case .warning: return Color(hex: 0xD89B62)
+        case .blocked: return Color(hex: 0xC75B6B)
         }
     }
 }

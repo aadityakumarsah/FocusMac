@@ -131,6 +131,7 @@ public struct AppState: Codable {
     public var lifelineDayStamp: Date?
     public var lifelineEndsAt: Date?
     public var lifelineDays: [LifelineDay]
+    public var permissionsRequested: Bool
 
     public init(
         goal: FocusGoal? = nil,
@@ -152,7 +153,8 @@ public struct AppState: Codable {
         lifelineUsedToday: Int = 0,
         lifelineDayStamp: Date? = nil,
         lifelineEndsAt: Date? = nil,
-        lifelineDays: [LifelineDay] = []
+        lifelineDays: [LifelineDay] = [],
+        permissionsRequested: Bool = false
     ) {
         self.goal = goal
         self.warnAfter = warnAfter
@@ -174,12 +176,13 @@ public struct AppState: Codable {
         self.lifelineDayStamp = lifelineDayStamp
         self.lifelineEndsAt = lifelineEndsAt
         self.lifelineDays = lifelineDays
+        self.permissionsRequested = permissionsRequested
     }
 
     private enum CodingKeys: String, CodingKey {
         case goal, warnAfter, blockAfter, trackingEnabled, totalXP, day, timeline, session, schedule, model
         case distractionLog, cameraCheckEnabled, cameraCheckInterval, attendanceLog, mouseIdleEvents, passwordHash
-        case lifelineUsedToday, lifelineDayStamp, lifelineEndsAt, lifelineDays
+        case lifelineUsedToday, lifelineDayStamp, lifelineEndsAt, lifelineDays, permissionsRequested
     }
 
     public init(from decoder: Decoder) throws {
@@ -204,6 +207,7 @@ public struct AppState: Codable {
         lifelineDayStamp = try c.decodeIfPresent(Date.self, forKey: .lifelineDayStamp)
         lifelineEndsAt = try c.decodeIfPresent(Date.self, forKey: .lifelineEndsAt)
         lifelineDays = try c.decodeIfPresent([LifelineDay].self, forKey: .lifelineDays) ?? []
+        permissionsRequested = try c.decodeIfPresent(Bool.self, forKey: .permissionsRequested) ?? false
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -228,5 +232,6 @@ public struct AppState: Codable {
         try c.encodeIfPresent(lifelineDayStamp, forKey: .lifelineDayStamp)
         try c.encodeIfPresent(lifelineEndsAt, forKey: .lifelineEndsAt)
         try c.encode(lifelineDays, forKey: .lifelineDays)
+        try c.encode(permissionsRequested, forKey: .permissionsRequested)
     }
 }

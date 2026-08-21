@@ -109,6 +109,11 @@ final class AppStateManager: ObservableObject {
         if attendanceEnabled {
             setupAttendance()
         }
+        // Focus mode is the whole point of the app: tracking is permanently on
+        // and a session is always running. The weekly schedule decides when the
+        // AI enforces focus and when it's free time.
+        sessionManager.trackingEnabled = true
+        sessionManager.startSession()
         timer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
             self?.tick()
         }
@@ -502,6 +507,18 @@ final class AppStateManager: ObservableObject {
         apply(sessionManager.snapshot(), animateXP: false)
     }
 
+    // MARK: - First-launch permissions
+
+    var needsPermissionOnboarding: Bool {
+        !sessionManager.store.state.permissionsRequested
+    }
+
+    func markPermissionsRequested() {
+        guard !sessionManager.store.state.permissionsRequested else { return }
+        sessionManager.store.state.permissionsRequested = true
+        sessionManager.store.save()
+    }
+
     // MARK: - Password lock
 
     private static func hash(_ password: String) -> String {
@@ -572,25 +589,12 @@ final class AppStateManager: ObservableObject {
 
     // MARK: - Focus session
 
-    func startSession() {
-        sessionManager.startSession()
-        apply(sessionManager.snapshot(), animateXP: false)
-    }
-
-    func endSession() {
-        sessionManager.endSession()
-        apply(sessionManager.snapshot(), animateXP: false)
-    }
-
-    func setTracking(_ on: Bool) {
-        guard on || passwordSet else {
-            sessionManager.trackingEnabled = on
+    /// Focus mode is always on — the schedule drives enforcement. Kept only so
+    /// legacy state can't leave tracking disabled.
+    func ensureTrackingOn() {
+        if !sessionManager.trackingEnabled {
+            sessionManager.trackingEnabled = true
             apply(sessionManager.snapshot(), animateXP: false)
-            return
-        }
-        performProtected("You need the password to turn focus mode off.") {
-            self.sessionManager.trackingEnabled = on
-            self.apply(self.sessionManager.snapshot(), animateXP: false)
         }
     }
 
@@ -682,7 +686,7 @@ final class AppStateManager: ObservableObject {
                 lastCloseFeedback = "Closed \(result.closedCount) tab\(result.closedCount == 1 ? "" : "s")."
             } else if result.automationDenied {
                 closeNeedsAutomationPermission = true
-                lastCloseFeedback = "Need Automation permission for \(appName) — click “Open Settings”, allow Mac Focus OS, then try again."
+                lastCloseFeedback = "Need Automation permission for \(appName) — click “Open Settings”, allow FocusMac, then try again."
             } else {
                 closeNeedsAutomationPermission = false
                 quitApp(pid: pid_t(ctx.pid), name: appName, reason: "Couldn't match the tab — asked \(appName) to quit.")
@@ -725,7 +729,7 @@ final class AppStateManager: ObservableObject {
             lastCloseFeedback = "Went back — now get to \(planTitle)."
         } else if bundleID != "com.apple.Safari" {
             closeNeedsAutomationPermission = true
-            lastCloseFeedback = "Need Automation permission for \(appName) — click “Open Settings”, allow Mac Focus OS, then try again."
+            lastCloseFeedback = "Need Automation permission for \(appName) — click “Open Settings”, allow FocusMac, then try again."
         } else {
             lastCloseFeedback = "Safari needs “Allow JavaScript from Apple Events” (Develop menu) to go back."
         }

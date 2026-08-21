@@ -12,7 +12,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var settingsWindow: NSWindow?
     private var statusItem: NSStatusItem?
     private var cancellables = Set<AnyCancellable>()
-    private var startMenuItem: NSMenuItem?
     private var toastWindow: NSWindow?
     private var toastTimer: Timer?
     private var cameraPanel: NSPanel?
@@ -22,14 +21,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var passwordPromptMessage = ""
     private var quitApproved = false
     private var quitRequested = false
+    private var onboardingWindow: NSWindow?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        NSApp.appearance = NSAppearance(named: .aqua)
         setupBlockOverlay()
         setupStatusItem()
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            BrowserTabScanner.primeAutomationPermissions()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+            self?.manager.ensureTrackingOn()
         }
 
         manager.onRequestDashboard = { [weak self] in
@@ -60,13 +61,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             }
             .store(in: &cancellables)
 
-        manager.$sessionActive
-            .sink { [weak self] active in
-                guard let self else { return }
-                self.startMenuItem?.title = active ? "End Focus Session" : "Start Focus Session"
-            }
-            .store(in: &cancellables)
-
         manager.$cameraOverlay
             .sink { [weak self] overlay in
                 guard let self else { return }
@@ -86,6 +80,49 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 }
             }
             .store(in: &cancellables)
+
+        // First launch: ask for every permission up front so macOS never
+        // interrupts mid-session later.
+        if manager.needsPermissionOnboarding {
+            let screenGranted = PermissionManager.screenGranted
+            let cameraGranted = PermissionManager.cameraGranted
+            if screenGranted && cameraGranted {
+                manager.markPermissionsRequested()
+                PermissionManager.primeAutomation()
+            } else {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+                    self?.showOnboarding()
+                }
+            }
+        }
+    }
+
+    private func showOnboarding() {
+        if let window = onboardingWindow {
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 430, height: 420),
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "Welcome to FocusMac"
+        window.isReleasedWhenClosed = false
+        window.delegate = self
+        window.contentView = NSHostingView(rootView: OnboardingView(
+            onFinish: { [weak self] in
+                self?.manager.markPermissionsRequested()
+                self?.onboardingWindow?.close()
+                self?.showDashboard()
+            }
+        ))
+        window.center()
+        onboardingWindow = window
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     private func showCameraPanelIfNeeded() {
@@ -197,11 +234,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private func setupStatusItem() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = item.button {
-            button.image = NSImage(systemSymbolName: "target", accessibilityDescription: "Mac Focus OS")
+            button.image = Self.statusBarIcon()
             button.imagePosition = .imageOnly
         }
         let menu = NSMenu()
-        let header = NSMenuItem(title: "Mac Focus OS", action: nil, keyEquivalent: "")
+        let header = NSMenuItem(title: "FocusMac", action: nil, keyEquivalent: "")
         header.isEnabled = false
         menu.addItem(header)
         menu.addItem(NSMenuItem(title: "Open Dashboard", action: #selector(openDashboard), keyEquivalent: "d"))
@@ -209,12 +246,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let settingsItem = NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
         settingsItem.keyEquivalentModifierMask = [.command]
         menu.addItem(settingsItem)
-        startMenuItem = NSMenuItem(title: "Start Focus Session", action: #selector(toggleSession), keyEquivalent: "s")
-        menu.addItem(startMenuItem!)
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "Quit Mac Focus OS", action: #selector(quitApp), keyEquivalent: "q"))
+        menu.addItem(NSMenuItem(title: "Quit FocusMac", action: #selector(quitApp), keyEquivalent: "q"))
         item.menu = menu
         statusItem = item
+    }
+
+    /// Menu-bar icon from the app logo. Rendered as a template image so macOS
+    /// automatically paints it black on a light menu bar and white on a dark
+    /// one (and highlights correctly when the menu opens).
+    private static func statusBarIcon() -> NSImage? {
+        guard let url = Bundle.module.url(forResource: "StatusIcon", withExtension: "png"),
+              let image = NSImage(contentsOf: url) else {
+            return NSImage(systemSymbolName: "target", accessibilityDescription: "FocusMac")
+        }
+        let size = NSSize(width: 18, height: 18)
+        let icon = NSImage(size: size, flipped: false) { rect in
+            image.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1.0)
+            return true
+        }
+        icon.isTemplate = true
+        icon.accessibilityDescription = "FocusMac"
+        return icon
     }
 
     private func showDashboard() {
@@ -229,7 +282,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             backing: .buffered,
             defer: false
         )
-        window.title = "Mac Focus OS"
+        window.title = "FocusMac"
         window.minSize = NSSize(width: 640, height: 560)
         window.isReleasedWhenClosed = false
         window.isMovableByWindowBackground = true
@@ -273,7 +326,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         if manager.passwordSet, manager.passwordLocked {
             quitRequested = true
-            showPasswordPrompt(message: "Enter your password to quit Mac Focus OS.")
+            showPasswordPrompt(message: "FocusMac is locked — enter your password to quit.")
             return .terminateCancel
         }
         return .terminateNow
@@ -288,7 +341,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 backing: .buffered,
                 defer: false
             )
-            panel.title = "Mac Focus OS — Password Required"
+            panel.title = "FocusMac — Password Required"
             panel.isReleasedWhenClosed = false
             panel.center()
             passwordPanel = panel
@@ -333,14 +386,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         showSettings()
     }
 
-    @objc private func toggleSession() {
-        if manager.sessionActive {
-            manager.endSession()
-        } else {
-            manager.startSession()
-        }
-    }
-
     @objc private func quitApp() {
         NSApp.terminate(nil)
     }
@@ -349,10 +394,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     /// Closing the password prompt with the ✕ button must cancel whatever was
     /// pending (including a quit request) — otherwise a later successful unlock
-    /// could terminate the app during an unrelated action.
+    /// could terminate the app during an unrelated action. Closing onboarding
+    /// marks permissions as handled so it never nags again.
     func windowWillClose(_ notification: Notification) {
-        guard let panel = notification.object as? NSPanel, panel == passwordPanel else { return }
-        quitRequested = false
-        manager.cancelPendingProtectedAction()
+        guard let panel = notification.object as? NSWindow else { return }
+        if let passwordPanel, panel == passwordPanel {
+            quitRequested = false
+            manager.cancelPendingProtectedAction()
+        }
+        if let onboardingWindow, panel == onboardingWindow {
+            manager.markPermissionsRequested()
+        }
     }
 }
