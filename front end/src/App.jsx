@@ -1,22 +1,18 @@
 import { useEffect, useState } from "react";
 import { Route, Routes, useLocation } from "react-router-dom";
-import { CopyToast, SiteFooter, SiteHeader, copyInstall } from "./components";
+import { Footer, Header, Toast, copyInstall } from "./components";
 import { FeaturesPage, HomePage, HowItWorksPage, InstallPage } from "./pages";
 
 function ScrollManager() {
-  const location = useLocation();
-
+  const { pathname, hash } = useLocation();
   useEffect(() => {
-    if (location.hash === "#faq" || location.hash === "#benchmarks") {
-      const id = location.hash.slice(1);
-      requestAnimationFrame(() => {
-        document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
-      });
+    if (hash) {
+      const id = hash.slice(1);
+      requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth" }));
       return;
     }
     window.scrollTo({ top: 0, behavior: "smooth" });
-  }, [location.pathname, location.hash]);
-
+  }, [pathname, hash]);
   return null;
 }
 
@@ -26,7 +22,7 @@ export default function App() {
 
   return (
     <div className="site">
-      <SiteHeader />
+      <Header />
       <ScrollManager />
       <main>
         <Routes>
@@ -36,8 +32,8 @@ export default function App() {
           <Route path="/install" element={<InstallPage onCopy={onCopy} />} />
         </Routes>
       </main>
-      <SiteFooter />
-      <CopyToast message={toast} />
+      <Footer />
+      <Toast message={toast} />
     </div>
   );
 }
