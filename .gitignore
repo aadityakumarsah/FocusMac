@@ -2,4 +2,7 @@
 .build/
 build/
 human-service/node_modules/
+front end/node_modules/
+front end/dist/
+front end/.wrangler/
 *.log

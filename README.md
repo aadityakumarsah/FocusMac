@@ -14,7 +14,7 @@ you can't cheat your way out.
 [![Release](https://img.shields.io/github/v/release/aadityakumarsah/FocusMac?color=pink&label=release)](https://github.com/aadityakumarsah/FocusMac/releases)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-[Features](#-features) · [How it works](#-how-it-works) · [Benchmarks](#-benchmarks) · [Install](#-install) · [AI providers](#-ai-providers) · [Build from source](#-build-from-source)
+[Features](#-features) · [How it works](#-how-it-works) · [Benchmarks](#-benchmarks) · [Install](#-install) · [AI providers](#-ai-providers) · [Build from source](#-build-from-source) · [Website](https://focusmac.pages.dev)
 
 </div>
 
