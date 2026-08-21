@@ -19,7 +19,7 @@ enum HumanServiceManager {
 
     private static var bundledServiceArchive: URL? {
         guard let resourceURL = Bundle.main.resourceURL else { return nil }
-        let archive = resourceURL.appendingPathComponent("human-service.tar")
+        let archive = resourceURL.appendingPathComponent("human-service.tar.gz")
         return FileManager.default.fileExists(atPath: archive.path) ? archive : nil
     }
 

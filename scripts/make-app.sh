@@ -14,12 +14,12 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN_DIR/MacFocusOS" "$APP/Contents/MacOS/FocusMac"
 cp "Resources/Info.plist" "$APP/Contents/Info.plist"
 cp "Resources/FocusMac.icns" "$APP/Contents/Resources/FocusMac.icns"
-# The phone/attendance detector ships as a real directory inside the bundle so
-# installed apps are fully self-contained (node_modules includes the native
-# tfjs/onnxruntime bindings; models add ~40MB). Build/sign get slower — that's
-# the price of a working drag-and-drop install.
-rm -rf "$APP/Contents/Resources/human-service"
-COPYFILE_DISABLE=1 ditto "human-service" "$APP/Contents/Resources/human-service"
+# The phone/attendance detector ships as one gzip archive in Resources. The app
+# expands it once into Application Support on first camera-enabled launch
+# (HumanServiceManager.installBundledServiceIfNeeded). A single archive keeps
+# the build fast and the download small; per-file copies of node_modules are
+# pathologically slow on machines that security-scan every new file.
+COPYFILE_DISABLE=1 tar -zcf "$APP/Contents/Resources/human-service.tar.gz" "human-service"
 
 find "$APP" -name ".DS_Store" -delete
 xattr -cr "$APP"
@@ -37,5 +37,17 @@ else
     echo "WARNING: stable identity not found — signed ad-hoc. Permissions may reset on rebuild."
 fi
 
+# Drag-and-drop installer disk image (Applications symlink + app).
+DMG_ROOT="$(mktemp -d)"
+DMG="build/FocusMac.dmg"
+trap 'rm -rf "$DMG_ROOT"' EXIT
+cp -R "$APP" "$DMG_ROOT/FocusMac.app"
+ln -s /Applications "$DMG_ROOT/Applications"
+rm -f "$DMG"
+hdiutil create -volname "FocusMac" -srcfolder "$DMG_ROOT" -ov -format UDZO "$DMG" >/dev/null
+xattr -cr "$DMG"
+
 echo "Built $APP"
+echo "Built $DMG"
 echo "Run with: open $APP"
+echo "Install: open $DMG  (drag FocusMac → Applications)"

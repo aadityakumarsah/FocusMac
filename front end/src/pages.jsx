@@ -102,6 +102,37 @@ function Demo() {
 }
 
 function Term({ onCopy }) {
+  const [pct, setPct] = useState(0);
+  const [phase, setPhase] = useState("idle"); // idle | download | open | done
+  const [frame, setFrame] = useState(0);
+
+  useEffect(() => {
+    let raf;
+    let start;
+    const loop = (t) => {
+      if (start == null) start = t;
+      const elapsed = (t - start) % 5200;
+      setFrame(Math.floor(t / 80));
+      if (elapsed < 2800) {
+        setPhase("download");
+        setPct(Math.min(100, Math.round((elapsed / 2800) * 100)));
+      } else if (elapsed < 3600) {
+        setPhase("open");
+        setPct(100);
+      } else {
+        setPhase("done");
+        setPct(100);
+      }
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  const filled = Math.round((pct / 100) * 22);
+  const bar = "█".repeat(filled) + "░".repeat(22 - filled);
+  const spin = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"[frame % 10];
+
   return (
     <div className="term">
       <div className="term-top">
@@ -110,16 +141,35 @@ function Term({ onCopy }) {
           <span />
           <span />
         </div>
-        <p>zsh</p>
+        <p>zsh — FocusMac</p>
         <button type="button" onClick={onCopy}>
           Copy
         </button>
       </div>
       <pre>
         <code>
-          <span className="p">➜</span> git clone https://github.com/aadityakumarsah/FocusMac.git{"\n"}
-          <span className="p">➜</span> cd FocusMac && ./scripts/install.sh{"\n\n"}
-          <span className="g">✓ FocusMac.app → /Applications</span>
+          <span className="p">➜</span> curl -fsSL …/download.sh | bash{"\n\n"}
+          {phase === "download" && (
+            <>
+              <span className="g">↓</span>  <span className="p">{bar}</span>  {pct}%{"\n"}
+              {"  "}
+              <span className="p">{spin}</span> downloading FocusMac.dmg{"\n"}
+            </>
+          )}
+          {phase === "open" && (
+            <>
+              <span className="g">✓</span>  download complete{"\n"}
+              {"  "}
+              <span className="p">{spin}</span> opening disk image…{"\n"}
+            </>
+          )}
+          {phase === "done" && (
+            <>
+              <span className="g">✓</span>  download complete{"\n"}
+              <span className="g">✓</span>  opened ~/Downloads/FocusMac.dmg{"\n\n"}
+              <span className="g">Ready.</span> Drag FocusMac → Applications
+            </>
+          )}
         </code>
       </pre>
     </div>
@@ -259,8 +309,8 @@ export function HomePage({ onCopy }) {
               Then Applications.
             </h2>
             <p className="sub tight">
-              Copy the command, open Terminal, hit return. FocusMac builds and opens. Or grab a
-              release zip from GitHub.
+              Copy the command, open Terminal, hit return. Watch the download, then drag FocusMac
+              into Applications.
             </p>
             <div className="row">
               <button type="button" className="btn primary" onClick={onCopy}>
@@ -452,7 +502,7 @@ export function InstallPage({ onCopy }) {
             <br />
             <span>Paste. Focus.</span>
           </h1>
-          <p className="sub">Terminal is the fastest path. Releases work too.</p>
+          <p className="sub">One Terminal paste. Beautiful progress, then drag into Applications.</p>
         </Reveal>
       </section>
 
@@ -475,10 +525,10 @@ export function InstallPage({ onCopy }) {
               <b>1</b> Copy the prompt
             </li>
             <li>
-              <b>2</b> Paste in Terminal
+              <b>2</b> Paste in Terminal — watch the download
             </li>
             <li>
-              <b>3</b> Open from Applications
+              <b>3</b> Drag FocusMac → Applications
             </li>
           </ol>
           <p className="micro">

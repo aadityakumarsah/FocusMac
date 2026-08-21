@@ -118,7 +118,7 @@ export function Toast({ message }) {
 export async function copyInstall(setToast) {
   try {
     await navigator.clipboard.writeText(installCommand);
-    setToast("Copied. Paste into Terminal.");
+    setToast("Copied. Paste into Terminal — watch it download.");
   } catch {
     setToast("Copy failed — use the Install page.");
   }

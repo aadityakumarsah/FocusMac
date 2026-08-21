@@ -2,7 +2,7 @@ export const REPO_URL = "https://github.com/aadityakumarsah/FocusMac";
 export const RELEASES_URL = "https://github.com/aadityakumarsah/FocusMac/releases";
 
 export const installCommand =
-  "git clone https://github.com/aadityakumarsah/FocusMac.git && cd FocusMac && ./scripts/install.sh";
+  "curl -fsSL https://raw.githubusercontent.com/aadityakumarsah/FocusMac/main/scripts/download.sh | bash";
 
 export const nav = [
   { to: "/features", label: "Features" },
@@ -91,7 +91,7 @@ export const faq = [
     "Is free time blocked?",
     "No. Free time, meals, breaks, and sleep are respected.",
   ],
-  ["Is it free?", "Yes. MIT on GitHub. Terminal install or Releases."],
+  ["Is it free?", "Yes. MIT on GitHub. Paste the Terminal command or download the DMG from Releases."],
 ];
 
 export const benches = [
