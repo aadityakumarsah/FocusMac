@@ -1,0 +1,5 @@
+.DS_Store
+.build/
+build/
+human-service/node_modules/
+*.log
