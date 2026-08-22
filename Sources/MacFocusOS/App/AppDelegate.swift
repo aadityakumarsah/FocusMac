@@ -113,6 +113,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         setupSignalHandling()
     }
 
+    func applicationDidBecomeActive(_ notification: Notification) {
+        // System Settings does not notify this process when a privacy toggle
+        // changes. Refresh on return so setup completes immediately instead
+        // of waiting for the next timer tick or a relaunch.
+        manager.refreshPermissions()
+    }
+
     /// Terminal kills (`kill <pid>`, Ctrl-C) must go through the same password
     /// gate as menu quits. Routing SIGTERM/SIGINT into NSApp.terminate makes
     /// applicationShouldTerminate run first; only SIGKILL is unstoppable.

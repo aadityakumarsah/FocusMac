@@ -34,8 +34,8 @@ struct OnboardingView: View {
 
     private var passwordDone: Bool { manager.passwordSet }
     private var scheduleDone: Bool { manager.scheduleCount > 0 }
-    private var screenGranted: Bool { PermissionManager.screenGranted }
-    private var cameraGranted: Bool { PermissionManager.cameraGranted }
+    private var screenGranted: Bool { manager.screenPermissionGranted }
+    private var cameraGranted: Bool { manager.cameraPermissionGranted }
     private var permissionsDone: Bool { screenGranted && cameraGranted }
 
     private var aiDone: Bool {
@@ -77,6 +77,7 @@ struct OnboardingView: View {
         .background(palette.card.opacity(scheme == .dark ? 0.98 : 0.99))
         .onReceive(clock) { _ in statusTick = Date() }
         .onAppear {
+            manager.refreshPermissions()
             loadConfig()
             // First-run: land on password and focus the field immediately.
             if !passwordDone {
@@ -309,9 +310,11 @@ struct OnboardingView: View {
     private func enableEverything() {
         PermissionManager.requestScreen()
         screenAsked = true
+        manager.refreshPermissions()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
             cameraAsked = true
             PermissionManager.requestCamera { granted in
+                manager.refreshPermissions()
                 if !granted { PermissionManager.openPrivacyPane("Privacy_Camera") }
             }
         }

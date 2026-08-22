@@ -49,7 +49,8 @@ final class AppStateManager: ObservableObject {
     @Published private(set) var warningDuration: TimeInterval = 0
     @Published private(set) var blocked = false
     @Published private(set) var currentScheduleBlock: ScheduleBlock?
-    @Published private(set) var screenPermissionGranted = true
+    @Published private(set) var screenPermissionGranted = false
+    @Published private(set) var cameraPermissionGranted = false
     @Published private(set) var modelConfig: ModelConfig
     @Published private(set) var modelStatus: ModelStatus = .idle
     @Published private(set) var ollamaServerRunning = false
@@ -111,7 +112,7 @@ final class AppStateManager: ObservableObject {
         modelConfig = store.state.model ?? ModelConfig()
         sanitizeCameraInterval()
         trimStoredLogs()
-        screenPermissionGranted = ActivityMonitor.hasScreenCapturePermission
+        refreshPermissions()
         apply(sessionManager.snapshot(), animateXP: false)
         refreshLifelineState()
         passwordSet = sessionManager.store.state.passwordHash != nil
@@ -545,17 +546,28 @@ final class AppStateManager: ObservableObject {
 
     // MARK: - Screen recording permission
 
-    func refreshPermission() {
-        let granted = ActivityMonitor.hasScreenCapturePermission
-        if screenPermissionGranted != granted {
-            screenPermissionGranted = granted
+    /// Re-read macOS privacy permissions. These values are published so every
+    /// open view updates as soon as the user returns from System Settings.
+    func refreshPermissions() {
+        let screenGranted = ActivityMonitor.hasScreenCapturePermission
+        let cameraGranted = PermissionManager.cameraGranted
+        if screenPermissionGranted != screenGranted {
+            screenPermissionGranted = screenGranted
+        }
+        if cameraPermissionGranted != cameraGranted {
+            cameraPermissionGranted = cameraGranted
         }
         lastPermissionCheck = Date()
     }
 
+    // Kept for callers that used the old screen-only name.
+    func refreshPermission() {
+        refreshPermissions()
+    }
+
     private func refreshPermissionIfNeeded() {
         if let last = lastPermissionCheck, Date().timeIntervalSince(last) < 15 { return }
-        refreshPermission()
+        refreshPermissions()
     }
 
     // MARK: - Lifelines
@@ -664,8 +676,8 @@ final class AppStateManager: ObservableObject {
     var setupComplete: Bool {
         passwordSet
             && !sessionManager.schedule.isEmpty
-            && ActivityMonitor.hasScreenCapturePermission
-            && PermissionManager.cameraGranted
+            && screenPermissionGranted
+            && cameraPermissionGranted
             && modelConfig.isConfigured
     }
 
@@ -1020,6 +1032,8 @@ final class AppStateManager: ObservableObject {
                     }
                 }
             }
+            // Do not show an update that cannot actually be installed.
+            guard let best else { return }
             updateAssetURL = best
             latestVersion = version
         } catch {
