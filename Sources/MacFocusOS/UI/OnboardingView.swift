@@ -75,7 +75,13 @@ struct OnboardingView: View {
         .padding(22)
         .frame(width: 470)
         .background(palette.card.opacity(scheme == .dark ? 0.98 : 0.99))
-        .onReceive(clock) { _ in statusTick = Date() }
+        .onReceive(clock) { date in
+            // Privacy changes made in System Settings do not reliably emit an
+            // app notification. Poll while this screen is visible so Pending
+            // turns into Allowed without closing or relaunching FocusMac.
+            statusTick = date
+            manager.refreshPermissions()
+        }
         .onAppear {
             manager.refreshPermissions()
             loadConfig()
