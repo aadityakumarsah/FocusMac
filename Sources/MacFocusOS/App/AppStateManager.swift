@@ -122,11 +122,12 @@ final class AppStateManager: ObservableObject {
             setupAttendance()
         }
         // Focus mode is the whole point of the app: tracking is permanently on.
-        // A session auto-starts only once setup is complete (password, schedule,
-        // permissions, AI); otherwise the setup wizard walks the user through it.
+        // A session auto-starts once its personal setup is complete. macOS
+        // privacy permissions are requested when the session begins and never
+        // keep someone trapped in the welcome flow.
         sessionManager.trackingEnabled = true
         if setupComplete {
-            sessionManager.startSession()
+            startSession()
         }
         Task { [weak self] in
             await self?.checkForUpdates()
@@ -670,14 +671,11 @@ final class AppStateManager: ObservableObject {
 
     // MARK: - Setup gate
 
-    /// Everything the user must complete before a session can start:
-    /// password lock, at least one schedule block, screen + camera permission,
-    /// and a working AI configuration.
+    /// Only personal configuration blocks starting. macOS privacy permission
+    /// prompts belong at session start, where the user can act on them.
     var setupComplete: Bool {
         passwordSet
             && !sessionManager.schedule.isEmpty
-            && screenPermissionGranted
-            && cameraPermissionGranted
             && modelConfig.isConfigured
     }
 
@@ -689,6 +687,23 @@ final class AppStateManager: ObservableObject {
         guard setupComplete else { return }
         sessionManager.startSession()
         apply(sessionManager.snapshot(), animateXP: false)
+        requestSessionPermissions()
+    }
+
+    private func requestSessionPermissions() {
+        if !screenPermissionGranted {
+            PermissionManager.requestScreen()
+        }
+        if !cameraPermissionGranted {
+            // Let the Screen Recording prompt appear first; requesting both in
+            // the same run-loop turn can make macOS drop the camera prompt.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
+                PermissionManager.requestCamera { _ in
+                    self?.refreshPermissions()
+                }
+            }
+        }
+        PermissionManager.primeAutomation()
     }
 
     /// Focus mode is always on — the schedule drives enforcement. Kept only so

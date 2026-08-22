@@ -43,14 +43,17 @@ struct OnboardingView: View {
         return !apiKey.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
-    private var allDone: Bool { passwordDone && scheduleDone && permissionsDone && aiDone }
+    private var allDone: Bool { passwordDone && scheduleDone && aiDone }
 
     /// Fresh users must finish the current step before moving on — especially password.
     private var canContinue: Bool {
         switch step {
         case 0: return passwordDone
         case 1: return scheduleDone
-        case 2: return permissionsDone
+        // Permissions are requested when the session starts. They must never
+        // prevent a user from getting past setup when macOS is slow to report
+        // a toggle or has deferred its prompt.
+        case 2: return true
         case 3: return aiDone
         default: return allDone
         }
@@ -310,6 +313,11 @@ struct OnboardingView: View {
             }
             .buttonStyle(FocusActionStyle(filled: false, tint: palette.secondary))
             .font(.system(size: 11))
+            if !permissionsDone {
+                Text("You can continue now — FocusMac will ask again when you start your first session.")
+                    .font(.system(size: 10))
+                    .foregroundStyle(palette.secondary)
+            }
         }
     }
 
@@ -455,8 +463,8 @@ struct OnboardingView: View {
                       "Once you press Start, FocusMac locks in: quitting needs your password, focus enforcement follows your schedule, and the camera keeps you honest. There is no off switch.")
             checklistRow("Password lock", passwordDone, palette: palette)
             checklistRow("Weekly schedule (\(manager.scheduleCount) blocks)", scheduleDone, palette: palette)
-            checklistRow("Screen Recording", screenGranted, palette: palette)
-            checklistRow("Camera", cameraGranted, palette: palette)
+            checklistRow("Screen Recording (requested when session starts)", screenGranted, palette: palette)
+            checklistRow("Camera (requested when session starts)", cameraGranted, palette: palette)
             checklistRow("AI configured", aiDone, palette: palette)
             Button {
                 PermissionManager.primeAutomation()
@@ -472,7 +480,7 @@ struct OnboardingView: View {
             .buttonStyle(FocusActionStyle(filled: true, tint: allDone ? palette.accent : palette.secondary))
             .disabled(!allDone)
             if !allDone {
-                Text("Complete every step above to unlock the start button.")
+                Text("Complete your password, schedule, and AI setup to unlock the start button.")
                     .font(.system(size: 10))
                     .foregroundStyle(palette.secondary.opacity(0.8))
             }
