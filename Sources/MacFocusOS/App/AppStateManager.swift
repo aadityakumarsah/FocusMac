@@ -574,9 +574,51 @@ final class AppStateManager: ObservableObject {
         refreshPermissions()
     }
 
+    /// Used by the permission banner's "Recheck" button. If the permission is
+    /// still OFF after the user has been to System Settings to enable it, the
+    /// most likely cause is macOS's launch-time Screen Recording grant, so we
+    /// surface the restart hint instead of silently showing the same banner.
+    func recheckScreenPermission() {
+        refreshPermissions()
+        if !screenPermissionGranted {
+            screenRecordingNeedsRestart = true
+        }
+    }
+
     private func refreshPermissionIfNeeded() {
         if let last = lastPermissionCheck, Date().timeIntervalSince(last) < 15 { return }
         refreshPermissions()
+    }
+
+    // MARK: - Screen Recording restart
+
+    /// macOS only hands the Screen Recording permission to the already-running
+    /// process after it has been restarted — even after the user switches it ON
+    /// in System Settings, `CGPreflightScreenCaptureAccess()` keeps returning
+    /// false until relaunch. This flag tells the UI to offer a restart.
+    @Published var screenRecordingNeedsRestart = false
+
+    /// Called from the banner/toggle when the user has just toggled the
+    /// permission in System Settings but a recheck still reports OFF. We can't
+    /// read the TCC grant from inside the sandbox, so on modern macOS the only
+    /// reliable way to pick it up is a relaunch.
+    func requestScreenRecordingRestart() {
+        let app = Bundle.main.bundleURL.path
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+        task.arguments = [app]
+        try? task.run()
+        skipPasswordForNextQuit = true
+        exit(0)
+    }
+
+    /// Launch-Finish-Persist fix: once the relaunched process sees the
+    /// permission granted, clear the helper flag so the banner disappears.
+    func updateScreenRecordingRestartHint() {
+        let needs = !screenPermissionGranted && screenRecordingNeedsRestart
+        if screenRecordingNeedsRestart != needs {
+            screenRecordingNeedsRestart = needs
+        }
     }
 
     // MARK: - Lifelines

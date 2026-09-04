@@ -218,27 +218,42 @@ struct DashboardView: View {
     }
 
     private var permissionBanner: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "rectangle.badge.record")
-                .font(.system(size: 11))
-                .foregroundStyle(palette.misaligned)
-            Text("Screen Recording permission is OFF — window titles can't be read, so nothing can be detected. Allow FocusMac in System Settings → Privacy & Security → Screen Recording, then click here to recheck.")
-                .font(.system(size: 10))
-                .foregroundStyle(palette.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            Spacer()
-            Button("Fix") {
-                PermissionManager.resetScreenPermission()
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: "rectangle.badge.record")
+                    .font(.system(size: 11))
+                    .foregroundStyle(palette.misaligned)
+                Text("Screen Recording permission is OFF — window titles can't be read, so nothing can be detected. Allow FocusMac in System Settings → Privacy & Security → Screen Recording.")
+                    .font(.system(size: 10))
+                    .foregroundStyle(palette.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer()
+                Button("Fix") {
                     PermissionManager.requestScreen()
                     PermissionManager.openPrivacyPane("Privacy_ScreenCapture")
                 }
+                .buttonStyle(FocusActionStyle(filled: true, tint: palette.misaligned))
+                Button("Recheck") {
+                    manager.recheckScreenPermission()
+                }
+                .buttonStyle(FocusActionStyle(filled: false, tint: palette.accent))
             }
-            .buttonStyle(FocusActionStyle(filled: true, tint: palette.misaligned))
-            Button("Recheck") {
-                manager.refreshPermission()
+            if manager.screenRecordingNeedsRestart {
+                HStack(spacing: 8) {
+                    Image(systemName: "arrow.clockwise.circle")
+                        .font(.system(size: 11))
+                        .foregroundStyle(palette.warn)
+                    Text("You enabled Screen Recording, but macOS only applies it after FocusMac restarts. Restart now?")
+                        .font(.system(size: 10))
+                        .foregroundStyle(palette.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer()
+                    Button("Restart FocusMac") {
+                        manager.requestScreenRecordingRestart()
+                    }
+                    .buttonStyle(FocusActionStyle(filled: true, tint: palette.warn))
+                }
             }
-            .buttonStyle(FocusActionStyle(filled: false, tint: palette.accent))
         }
         .padding(10)
         .background(RoundedRectangle(cornerRadius: 10).fill(palette.misaligned.opacity(0.1)))
