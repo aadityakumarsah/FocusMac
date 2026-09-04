@@ -22,8 +22,8 @@ clean_bundle_attributes() {
 }
 
 echo "→ Building release binary…"
-swift build -c release
-BIN_DIR="$(swift build -c release --show-bin-path)"
+swift build -c release --target MacFocusOS
+BIN_DIR="$(swift build -c release --target MacFocusOS --show-bin-path)"
 
 echo "→ Assembling FocusMac.app…"
 rm -rf "$APP"

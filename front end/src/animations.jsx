@@ -182,7 +182,7 @@ export function MorphingBackground() {
       left: 0,
       right: 0,
       bottom: 0,
-      background: 'linear-gradient(-45deg, #0a0a0f, #1a1a2e, #16213e, #0f3460)',
+      background: 'linear-gradient(-45deg, #f7f8fc, #ffffff, #f5f3ff, #fff5f0)',
       backgroundSize: '400% 400%',
       animation: 'gradient-shift 15s ease infinite',
       zIndex: -1
