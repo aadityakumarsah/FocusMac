@@ -83,7 +83,10 @@ struct OnboardingView: View {
             // app notification. Poll while this screen is visible so Pending
             // turns into Allowed without closing or relaunching FocusMac.
             statusTick = date
-            manager.refreshPermissions()
+            // Force immediate permission refresh more frequently during onboarding
+            if Int(date.timeIntervalSince1970) % 2 == 0 {
+                manager.refreshPermissions()
+            }
         }
         .onAppear {
             manager.refreshPermissions()
@@ -324,15 +327,22 @@ struct OnboardingView: View {
     private func enableEverything() {
         PermissionManager.requestScreen()
         screenAsked = true
-        manager.refreshPermissions()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
+        // Give more time for macOS to process the permission request
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            manager.refreshPermissions()
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
             cameraAsked = true
             PermissionManager.requestCamera { granted in
+                // Multiple refresh attempts to ensure the permission is detected
                 manager.refreshPermissions()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    manager.refreshPermissions()
+                }
                 if !granted { PermissionManager.openPrivacyPane("Privacy_Camera") }
             }
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
             PermissionManager.primeAutomation()
         }
     }

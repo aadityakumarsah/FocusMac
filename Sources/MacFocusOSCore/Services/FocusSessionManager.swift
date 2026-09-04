@@ -195,12 +195,16 @@ public final class FocusSessionManager {
 
     public func scheduleAllowsSite(_ site: String, scheduledTitle: String) -> Bool {
         let title = scheduledTitle.lowercased()
+        // Default behavior: sites are NOT allowed unless explicitly mentioned in schedule
+        // This ensures the tracker properly restricts content
         switch site {
         case "x":
             return title.contains("x.com") || title.contains("twitter")
         case "linkedin":
             return title.contains("linkedin") || title.contains("job") || title.contains("apply") || title.contains("applicat")
         case "youtube":
+            // YouTube is only allowed if the schedule explicitly mentions it
+            // By default, it's treated as entertainment and should be blocked
             return title.contains("youtube") || title.contains("video")
         case "reddit":
             return title.contains("reddit")
@@ -214,7 +218,11 @@ public final class FocusSessionManager {
             return title.contains("netflix") || title.contains("movie") || title.contains("show")
         case "spotify":
             return title.contains("spotify") || title.contains("music")
+        case "vlogs", "comedy", "movies":
+            // These are entertainment categories that should be blocked unless explicitly allowed
+            return title.contains(site) || title.contains("entertainment")
         default:
+            // Default to restrictive: only allow if explicitly mentioned
             return title.contains(site)
         }
     }

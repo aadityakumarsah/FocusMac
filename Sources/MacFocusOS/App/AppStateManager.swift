@@ -96,7 +96,7 @@ final class AppStateManager: ObservableObject {
     private var lastPermissionCheck: Date?
     private var lastTabScan: Date?
     private var lastFrontmostKey: String?
-    private var blockedStreak = 0
+    private var blockedStreak = 0  // kept for analytics; no longer gates blocking
     private var cachedSocialTabs: [String] = []
 
     var onRequestDashboard: (() -> Void)?
@@ -112,6 +112,9 @@ final class AppStateManager: ObservableObject {
         modelConfig = store.state.model ?? ModelConfig()
         sanitizeCameraInterval()
         trimStoredLogs()
+        // Load persisted permission states first, then refresh
+        screenPermissionGranted = sessionManager.store.state.screenPermissionGranted
+        cameraPermissionGranted = sessionManager.store.state.cameraPermissionGranted
         refreshPermissions()
         apply(sessionManager.snapshot(), animateXP: false)
         refreshLifelineState()
@@ -487,13 +490,10 @@ final class AppStateManager: ObservableObject {
         if distracting {
             MediaPauser.pauseAll()
         }
-        
-        // Special handling for YouTube: block only when watching videos, not scrolling
-        if ctx.site == "youtube" && isWatchingVideo && snap.classification?.alignment == .misaligned {
-            // User is watching a non-educational video - trigger blocking
-            if !quietBlock {
-                blocked = true
-            }
+
+        // Immediate blocking for misaligned content during focus blocks
+        if !quietBlock && snap.classification?.alignment == .misaligned {
+            blocked = true
         }
     }
 
@@ -552,11 +552,19 @@ final class AppStateManager: ObservableObject {
     func refreshPermissions() {
         let screenGranted = ActivityMonitor.hasScreenCapturePermission
         let cameraGranted = PermissionManager.cameraGranted
+        var changed = false
         if screenPermissionGranted != screenGranted {
             screenPermissionGranted = screenGranted
+            sessionManager.store.state.screenPermissionGranted = screenGranted
+            changed = true
         }
         if cameraPermissionGranted != cameraGranted {
             cameraPermissionGranted = cameraGranted
+            sessionManager.store.state.cameraPermissionGranted = cameraGranted
+            changed = true
+        }
+        if changed {
+            sessionManager.store.save()
         }
         lastPermissionCheck = Date()
     }
@@ -1140,8 +1148,6 @@ final class AppStateManager: ObservableObject {
         if !sessionActive {
             // Before the user starts a session (setup phase) the app only
             // monitors — nothing is blocked and no alarms fire.
-            effectivePhase = .focused
-        } else if snap.phase == .blocked && blockedStreak < 2 {
             effectivePhase = .focused
         } else {
             effectivePhase = snap.phase

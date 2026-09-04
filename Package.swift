@@ -5,7 +5,8 @@ let package = Package(
     name: "MacFocusOS",
     platforms: [.macOS(.v13)],
     products: [
-        .executable(name: "MacFocusOS", targets: ["MacFocusOS"])
+        .executable(name: "MacFocusOS", targets: ["MacFocusOS"]),
+        .executable(name: "MacFocusOSCoreTests", targets: ["MacFocusOSCoreTests"])
     ],
     targets: [
         .target(
@@ -20,10 +21,11 @@ let package = Package(
             resources: [.copy("Resources")],
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
-        .testTarget(
+        .executableTarget(
             name: "MacFocusOSCoreTests",
             dependencies: ["MacFocusOSCore"],
-            path: "Tests/MacFocusOSCoreTests"
+            path: "Tests/MacFocusOSCoreTests",
+            swiftSettings: [.swiftLanguageMode(.v5)]
         )
     ]
 )

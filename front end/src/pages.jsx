@@ -1,373 +1,266 @@
-import { useEffect, useRef, useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import { Logo, Reveal } from "./components";
-import {
-  benches,
-  faq,
-  featureList,
-  flow,
-  installCommand,
-  proof,
-  RELEASES_URL,
-  REPO_URL,
-  stories,
-  wizard,
-} from "./data";
-import { useHashScroll } from "./hooks";
+import { installCommand, REPO_URL, RELEASES_URL } from "./data";
+import { 
+  ParticleBackground, 
+  OrbitingIcons, 
+  Card3D, 
+  FloatingElement, 
+  PulseGlow, 
+  GradientBorder, 
+  AnimatedCounter, 
+  Typewriter, 
+  MorphingBackground, 
+  Shimmer, 
+  MagneticButton, 
+  RevealOnScroll,
+  WaveAnimation 
+} from "./animations";
 
-function MacFrame({ children, title = "FocusMac — demo" }) {
+const features = [
+  {
+    icon: "🎯",
+    title: "AI Activity Classification",
+    description: "Classifies your work as focused, warning, or blocked every 2 seconds using intelligent rules and semantic analysis.",
+    color: "#ff6b35"
+  },
+  {
+    icon: "📅",
+    title: "Schedule-First Enforcement",
+    description: "Set your weekly schedule once. FocusMac automatically enforces focus during work blocks and respects free time.",
+    color: "#9b59b6"
+  },
+  {
+    icon: "🔒",
+    title: "Uncheatable Lock",
+    description: "Password-protected quit and camera controls. No recovery backdoor. Built so you can't cheat.",
+    color: "#3498db"
+  },
+  {
+    icon: "📸",
+    title: "Camera Attendance",
+    description: "YOLO-powered checks verify you're present, eyes on screen, and not using your phone. All local, never leaves your Mac.",
+    color: "#2ecc71"
+  },
+  {
+    icon: "🚫",
+    title: "Distraction Blocking",
+    description: "Automatically closes distracting tabs in Chrome, Brave, Arc, Edge, and Safari. Pauses background media.",
+    color: "#e91e63"
+  },
+  {
+    icon: "🎮",
+    title: "Gamification",
+    description: "Earn XP for focused work, lose points for distractions. Track daily, session, and lifetime totals with a 0-100 focus score.",
+    color: "#00bcd4"
+  }
+];
+
+const steps = [
+  { number: "1", title: "Lock Password", description: "Protects quit, pause, and camera-off" },
+  { number: "2", title: "Weekly Schedule", description: "Set your work and free time blocks" },
+  { number: "3", title: "Permissions", description: "Screen, camera, browser access" },
+  { number: "4", title: "AI Brain", description: "Ollama offline or cloud API key" },
+  { number: "5", title: "Start Session", description: "Begin your first focused session" }
+];
+
+const metrics = [
+  { value: 1.5, suffix: "%", label: "Idle CPU" },
+  { value: 85, suffix: " MB", label: "Memory Usage" },
+  { value: 1, suffix: "ms", label: "Rule Classification" },
+  { value: 98, suffix: "%", label: "AI Precision" }
+];
+
+const faqData = [
+  {
+    question: "Where does my data live?",
+    answer: "On your Mac. Camera frames for attendance never leave for cloud YOLO. API keys stay in Application Support. Nothing is sent anywhere except the AI provider you choose."
+  },
+  {
+    question: "Do I need an API key?",
+    answer: "Rules work alone. For semantic titles, use Ollama offline or connect to Anthropic, OpenAI, Gemini, Groq, DeepSeek, Kimi, or OpenRouter."
+  },
+  {
+    question: "Can I turn focus off?",
+    answer: "While FocusMac runs, focus stays on. Quitting or disabling camera checks requires your lock password. The system is designed to be uncheatable."
+  },
+  {
+    question: "What if I forget the password?",
+    answer: "No recovery backdoor exists. You can only change the password with the current password, or contact the developer if locked out."
+  },
+  {
+    question: "Is free time blocked?",
+    answer: "No. Free time, meals, breaks, and sleep blocks are respected. FocusMac only guards during designated work/study blocks."
+  },
+  {
+    question: "Is it free?",
+    answer: "Yes. MIT licensed on GitHub. Install with one Terminal command or download the DMG from GitHub Releases."
+  }
+];
+
+function FAQ() {
+  const [openIndex, setOpenIndex] = useState(0);
+
   return (
-    <div className="mac">
-      <div className="mac-bar">
-        <div className="traffic" aria-hidden="true">
-          <span />
-          <span />
-          <span />
-        </div>
-        <p>{title}</p>
-        <i />
-      </div>
-      <div className="mac-body">{children}</div>
-    </div>
-  );
-}
-
-function Demo() {
-  const ref = useRef(null);
-  const [playing, setPlaying] = useState(false);
-
-  useEffect(() => {
-    const video = ref.current;
-    if (!video) return undefined;
-    const tryPlay = async () => {
-      try {
-        video.muted = true;
-        await video.play();
-        setPlaying(true);
-      } catch {
-        /* autoplay blocked — user can tap */
-      }
-    };
-    tryPlay();
-    return undefined;
-  }, []);
-
-  return (
-    <MacFrame>
-      <div className={`stage ${playing ? "on" : ""}`}>
-        <video
-          ref={ref}
-          muted
-          playsInline
-          loop
-          preload="auto"
-          poster="/focusmac-logo.png"
-          onPlay={() => setPlaying(true)}
-          onPause={() => setPlaying(false)}
-        >
-          <source src="/demo-video.mov" type="video/mp4" />
-          <source src="/demo-video.mov" type="video/quicktime" />
-        </video>
-        {!playing && (
-          <button
-            type="button"
-            className="play"
-            onClick={async () => {
-              const v = ref.current;
-              if (!v) return;
-              v.muted = false;
-              await v.play();
-            }}
+    <div className="faq-list">
+      {faqData.map((item, index) => (
+        <RevealOnScroll key={index} threshold={0.1}>
+          <div 
+            className={`faq-item ${openIndex === index ? 'open' : ''}`}
           >
-            <b />
-            Watch demo
-          </button>
-        )}
-        {playing && (
-          <button
-            type="button"
-            className="sound"
-            onClick={() => {
-              const v = ref.current;
-              if (!v) return;
-              v.muted = !v.muted;
-            }}
-          >
-            Unmute / mute
-          </button>
-        )}
-      </div>
-    </MacFrame>
-  );
-}
-
-function Term({ onCopy }) {
-  const [pct, setPct] = useState(0);
-  const [phase, setPhase] = useState("idle"); // idle | download | open | done
-  const [frame, setFrame] = useState(0);
-
-  useEffect(() => {
-    let raf;
-    let start;
-    const loop = (t) => {
-      if (start == null) start = t;
-      const elapsed = (t - start) % 5200;
-      setFrame(Math.floor(t / 80));
-      if (elapsed < 2800) {
-        setPhase("download");
-        setPct(Math.min(100, Math.round((elapsed / 2800) * 100)));
-      } else if (elapsed < 4000) {
-        setPhase("open");
-        setPct(100);
-      } else {
-        setPhase("done");
-        setPct(100);
-      }
-      raf = requestAnimationFrame(loop);
-    };
-    raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
-  }, []);
-
-  const filled = Math.round((pct / 100) * 22);
-  const bar = "█".repeat(filled) + "░".repeat(22 - filled);
-  const spin = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"[frame % 10];
-
-  return (
-    <div className="term">
-      <div className="term-top">
-        <div className="traffic">
-          <span />
-          <span />
-          <span />
-        </div>
-        <p>zsh — FocusMac</p>
-        <button type="button" onClick={onCopy}>
-          Copy
-        </button>
-      </div>
-      <pre>
-        <code>
-          <span className="p">➜</span> curl -fsSL …/download.sh | bash{"\n\n"}
-          {phase === "download" && (
-            <>
-              <span className="g">↓</span>  <span className="p">{bar}</span>  {pct}%{"\n"}
-              {"  "}
-              <span className="p">{spin}</span> downloading FocusMac.dmg{"\n"}
-            </>
-          )}
-          {phase === "open" && (
-            <>
-              <span className="g">✓</span>  download complete{"\n"}
-              {"  "}
-              <span className="p">{spin}</span> installing to /Applications…{"\n"}
-            </>
-          )}
-          {phase === "done" && (
-            <>
-              <span className="g">✓</span>  download complete{"\n"}
-              <span className="g">✓</span>  installed → /Applications{"\n"}
-              <span className="g">✓</span>  launched FocusMac{"\n\n"}
-              <span className="g">Ready.</span> Set your lock password
-            </>
-          )}
-        </code>
-      </pre>
-    </div>
-  );
-}
-
-function FaqBlock() {
-  const [open, setOpen] = useState(0);
-  return (
-    <div className="faq" id="faq">
-      {faq.map(([q, a], i) => (
-        <div key={q} className={open === i ? "open" : ""}>
-          <button type="button" onClick={() => setOpen(open === i ? -1 : i)}>
-            <span>{q}</span>
-            <em>{open === i ? "−" : "+"}</em>
-          </button>
-          <p>{a}</p>
-        </div>
+            <button 
+              className="faq-question"
+              onClick={() => setOpenIndex(openIndex === index ? -1 : index)}
+            >
+              {item.question}
+              <span className="faq-icon">+</span>
+            </button>
+            <div className="faq-answer">
+              <p>{item.answer}</p>
+            </div>
+          </div>
+        </RevealOnScroll>
       ))}
     </div>
   );
 }
 
 export function HomePage({ onCopy }) {
-  useHashScroll();
-
   return (
     <>
+      <ParticleBackground />
+      <MorphingBackground />
+      
       <section className="hero">
-        <div className="hero-glow" aria-hidden="true" />
-        <div className="wrap hero-copy">
-          <Reveal>
-            <img className="hero-mark" src="/focusmac-logo.png" alt="focusmac" />
-            <h1>
-              The focus app that
-              <br />
-              <span>won’t let you quit.</span>
-            </h1>
-            <p className="sub">
-              AI watches your work, enforces your schedule, checks you’re at your desk, and
-              password-locks itself so distractions don’t win.
+        <div className="container hero-content">
+          <div className="hero-logo-container">
+            <div className="hero-logo-ring"></div>
+            <div className="hero-logo-ring-2"></div>
+            <FloatingElement delay={0} duration={6}>
+              <PulseGlow>
+                <img src="/focusmac-logo.png" alt="FocusMac" className="hero-logo" />
+              </PulseGlow>
+            </FloatingElement>
+          </div>
+          
+          <h1>
+            The focus app that <span className="highlight">won't let you quit.</span>
+          </h1>
+          
+          <p>
+            <Typewriter 
+              text="AI watches your work, enforces your schedule, verifies you're at your desk, and password-locks itself so distractions don't win."
+              speed={30}
+            />
+          </p>
+          
+          <div className="hero-buttons">
+            <MagneticButton onClick={onCopy}>
+              <Shimmer>Get Started</Shimmer>
+            </MagneticButton>
+            <Link className="animated-btn" to="/features" style={{ background: 'transparent', border: '2px solid var(--accent)' }}>
+              Learn More
+            </Link>
+          </div>
+          
+          <div className="hero-metrics glass-card">
+            {metrics.map((metric, index) => (
+              <div key={index} className="metric">
+                <div className="metric-value">
+                  <AnimatedCounter value={metric.value} suffix={metric.suffix} />
+                </div>
+                <div className="metric-label">{metric.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <RevealOnScroll threshold={0.1}>
+        <section className="section section-alt">
+          <div className="container">
+            <div className="section-header">
+              <span className="section-tag">Features</span>
+              <h2 className="gradient-text">Built for deep work</h2>
+              <p>Every guardrail you need to stay focused, nothing you don't.</p>
+            </div>
+            <div className="features-grid">
+              {features.map((feature, index) => (
+                <Card3D key={index}>
+                  <div className="feature-card glass-card" style={{ borderColor: feature.color + '40' }}>
+                    <FloatingElement delay={index * 0.2} duration={4 + index}>
+                      <div className="feature-icon" style={{ background: `linear-gradient(135deg, ${feature.color}, ${feature.color}99)` }}>
+                        {feature.icon}
+                      </div>
+                    </FloatingElement>
+                    <h3>{feature.title}</h3>
+                    <p>{feature.description}</p>
+                  </div>
+                </Card3D>
+              ))}
+            </div>
+          </div>
+        </section>
+      </RevealOnScroll>
+
+      <RevealOnScroll threshold={0.1}>
+        <section className="section">
+          <div className="container">
+            <div className="section-header">
+              <span className="section-tag">How It Works</span>
+              <h2 className="gradient-text">Five minutes to setup</h2>
+              <p>Then automatic focus enforcement for life.</p>
+            </div>
+            
+            <div className="steps">
+              {steps.map((step, index) => (
+                <FloatingElement key={index} delay={index * 0.3} duration={5}>
+                  <div className="step">
+                    <div className="step-number">{step.number}</div>
+                    <h3>{step.title}</h3>
+                    <p>{step.description}</p>
+                  </div>
+                </FloatingElement>
+              ))}
+            </div>
+          </div>
+        </section>
+      </RevealOnScroll>
+
+      <RevealOnScroll threshold={0.1}>
+        <section className="install-section section">
+          <div className="container">
+            <h2 className="gradient-text">Install in seconds</h2>
+            <p>One command. No setup required beyond the initial wizard.</p>
+            
+            <GradientBorder>
+              <div className="install-box">
+                <code>{installCommand}</code>
+                <MagneticButton className="copy-btn" onClick={onCopy}>
+                  <Shimmer>Copy</Shimmer>
+                </MagneticButton>
+              </div>
+            </GradientBorder>
+            
+            <p style={{ fontSize: '16px', marginTop: '24px' }}>
+              Or <a href={RELEASES_URL} target="_blank" rel="noreferrer" className="text-accent">download from GitHub Releases</a>
             </p>
-            <div className="row">
-              <button type="button" className="btn primary" onClick={onCopy}>
-                Copy install command
-              </button>
-              <Link className="btn ghost" to="/features">
-                Explore features
-              </Link>
-            </div>
-            <p className="micro">macOS 13+ · local-first · MIT · no account</p>
-          </Reveal>
-        </div>
-        <div className="wrap hero-demo">
-          <Reveal>
-            <Demo />
-          </Reveal>
-        </div>
-      </section>
+          </div>
+        </section>
+      </RevealOnScroll>
 
-      <section className="proof">
-        <div className="wrap proof-grid">
-          {proof.map((item) => (
-            <div key={item.label}>
-              <strong>{item.value}</strong>
-              <span>{item.label}</span>
+      <RevealOnScroll threshold={0.1}>
+        <section className="section section-alt">
+          <div className="container">
+            <div className="section-header">
+              <span className="section-tag">FAQ</span>
+              <h2 className="gradient-text">Common questions</h2>
+              <p>Everything you need to know about FocusMac.</p>
             </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="wrap stories">
-        {stories.map((s, i) => (
-          <Reveal key={s.tag} className={`story ${i % 2 ? "flip" : ""}`} as="article">
-            <div className="story-text">
-              <p className="tag">{s.tag}</p>
-              <h2>{s.title}</h2>
-              <p>{s.text}</p>
-            </div>
-            <div className={`story-art art-${i}`} aria-hidden="true">
-              {i === 0 && (
-                <div className="day">
-                  <b>Deep work</b>
-                  <b className="free">Free</b>
-                  <b className="live">Build · now</b>
-                  <b className="gym">Gym</b>
-                </div>
-              )}
-              {i === 1 && (
-                <div className="classify">
-                  <div>
-                    <span>Cursor</span>
-                    <em className="good">aligned</em>
-                  </div>
-                  <div>
-                    <span>YouTube Shorts</span>
-                    <em className="bad">blocked</em>
-                  </div>
-                  <div>
-                    <span>docs · ambiguous</span>
-                    <em className="mid">semantic</em>
-                  </div>
-                </div>
-              )}
-              {i === 2 && (
-                <div className="cam">
-                  <div className="face" />
-                  <div className="states">
-                    <i className="g">attentive</i>
-                    <i className="a">phone</i>
-                    <i className="r">away</i>
-                  </div>
-                </div>
-              )}
-              {i === 3 && (
-                <div className="lock">
-                  <div className="ring">LOCK</div>
-                  <ul>
-                    <li>quit → password</li>
-                    <li>pause → password</li>
-                    <li>camera → password</li>
-                  </ul>
-                </div>
-              )}
-            </div>
-          </Reveal>
-        ))}
-      </section>
-
-      <section className="install-band">
-        <div className="wrap install-grid">
-          <Reveal>
-            <p className="tag">Install in 30 seconds</p>
-            <h2>
-              One paste.
-              <br />
-              Then Applications.
-            </h2>
-            <p className="sub tight">
-              Copy the command, open Terminal, hit return. FocusMac downloads, installs to
-              Applications, and opens — no Gatekeeper malware false alarm.
-            </p>
-            <div className="row">
-              <button type="button" className="btn primary" onClick={onCopy}>
-                Copy command
-              </button>
-              <a className="btn ghost" href={RELEASES_URL} target="_blank" rel="noreferrer">
-                Releases
-              </a>
-            </div>
-          </Reveal>
-          <Reveal>
-            <Term onCopy={onCopy} />
-          </Reveal>
-        </div>
-      </section>
-
-      <section className="wrap block">
-        <Reveal className="block-head">
-          <p className="tag">Runtime</p>
-          <h2>Snapshot → classify → enforce → verify.</h2>
-        </Reveal>
-        <div className="flow">
-          {flow.map((f, i) => (
-            <Reveal key={f.title} className="flow-card" as="article">
-              <span>0{i + 1}</span>
-              <h3>{f.title}</h3>
-              <p>{f.text}</p>
-            </Reveal>
-          ))}
-        </div>
-      </section>
-
-      <section className="wrap block">
-        <Reveal className="block-head">
-          <p className="tag">FAQ</p>
-          <h2>Straight answers.</h2>
-        </Reveal>
-        <FaqBlock />
-      </section>
-
-      <section className="finale">
-        <div className="wrap">
-          <Reveal>
-            <Logo large />
-            <h2>Protect the next deep hour.</h2>
-            <div className="row center">
-              <button type="button" className="btn primary" onClick={onCopy}>
-                Install FocusMac
-              </button>
-              <a className="btn ghost" href={REPO_URL} target="_blank" rel="noreferrer">
-                Star on GitHub
-              </a>
-            </div>
-          </Reveal>
-        </div>
-      </section>
+            <FAQ />
+          </div>
+        </section>
+      </RevealOnScroll>
     </>
   );
 }
@@ -375,60 +268,51 @@ export function HomePage({ onCopy }) {
 export function FeaturesPage({ onCopy }) {
   return (
     <>
-      <section className="wrap page">
-        <Reveal>
-          <p className="tag">Features</p>
-          <h1>
-            Every guardrail,
-            <br />
-            <span>named.</span>
-          </h1>
-          <p className="sub">
-            From classification to camera lock — the full system that keeps deep work honest.
-          </p>
-        </Reveal>
-      </section>
-
-      <section className="wrap block">
-        <div className="feat-grid">
-          {featureList.map(([title, text]) => (
-            <Reveal key={title} className="feat" as="article">
-              <h3>{title}</h3>
-              <p>{text}</p>
-            </Reveal>
-          ))}
-        </div>
-      </section>
-
-      <section className="soft">
-        <div className="wrap block">
-          <Reveal className="block-head">
-            <p className="tag">Benchmarks</p>
-            <h2>Light footprint. Hard enforcement.</h2>
-          </Reveal>
-          <div className="bench">
-            {benches.map(([metric, value]) => (
-              <Reveal key={metric} className="bench-card" as="article">
-                <span>{metric}</span>
-                <strong>{value}</strong>
-              </Reveal>
-            ))}
+      <ParticleBackground />
+      <MorphingBackground />
+      
+      <section className="section">
+        <div className="container">
+          <div className="section-header">
+            <span className="section-tag">Features</span>
+            <h1 className="gradient-text">Every guardrail, named.</h1>
+            <p>From classification to camera lock — the full system that keeps deep work honest.</p>
           </div>
         </div>
       </section>
 
-      <section className="finale slim">
-        <div className="wrap">
-          <Reveal>
-            <h2>Install it.</h2>
-            <div className="row center">
-              <button type="button" className="btn primary" onClick={onCopy}>
-                Copy install command
-              </button>
+      <RevealOnScroll threshold={0.1}>
+        <section className="section section-alt">
+          <div className="container">
+            <div className="features-grid">
+              {features.map((feature, index) => (
+                <Card3D key={index}>
+                  <div className="feature-card glass-card" style={{ borderColor: feature.color + '40' }}>
+                    <FloatingElement delay={index * 0.2} duration={4 + index}>
+                      <div className="feature-icon" style={{ background: `linear-gradient(135deg, ${feature.color}, ${feature.color}99)` }}>
+                        {feature.icon}
+                      </div>
+                    </FloatingElement>
+                    <h3>{feature.title}</h3>
+                    <p>{feature.description}</p>
+                  </div>
+                </Card3D>
+              ))}
             </div>
-          </Reveal>
-        </div>
-      </section>
+          </div>
+        </section>
+      </RevealOnScroll>
+
+      <RevealOnScroll threshold={0.1}>
+        <section className="install-section section">
+          <div className="container">
+            <h2 className="gradient-text">Ready to focus?</h2>
+            <MagneticButton onClick={onCopy}>
+              <Shimmer>Install FocusMac</Shimmer>
+            </MagneticButton>
+          </div>
+        </section>
+      </RevealOnScroll>
     </>
   );
 }
@@ -436,111 +320,181 @@ export function FeaturesPage({ onCopy }) {
 export function HowItWorksPage({ onCopy }) {
   return (
     <>
-      <section className="wrap page">
-        <Reveal>
-          <p className="tag">How it works</p>
-          <h1>
-            Five minutes once.
-            <br />
-            <span>Then automatic.</span>
-          </h1>
-        </Reveal>
-      </section>
-
-      <section className="wrap block">
-        <div className="wizard">
-          {wizard.map(([n, title, text]) => (
-            <Reveal key={n} className="wiz" as="article">
-              <span>{n}</span>
-              <div>
-                <h3>{title}</h3>
-                <p>{text}</p>
-              </div>
-            </Reveal>
-          ))}
-        </div>
-      </section>
-
-      <section className="soft">
-        <div className="wrap block">
-          <div className="flow">
-            {flow.map((f, i) => (
-              <Reveal key={f.title} className="flow-card" as="article">
-                <span>0{i + 1}</span>
-                <h3>{f.title}</h3>
-                <p>{f.text}</p>
-              </Reveal>
-            ))}
+      <ParticleBackground />
+      <MorphingBackground />
+      
+      <section className="section">
+        <div className="container">
+          <div className="section-header">
+            <span className="section-tag">How It Works</span>
+            <h1 className="gradient-text">Five minutes once. Then automatic.</h1>
+            <p>Set up your system once, let FocusMac handle the rest.</p>
           </div>
         </div>
       </section>
 
-      <section className="finale slim">
-        <div className="wrap">
-          <Reveal>
-            <h2>Run the wizard tonight.</h2>
-            <div className="row center">
-              <button type="button" className="btn primary" onClick={onCopy}>
-                Copy install command
-              </button>
+      <RevealOnScroll threshold={0.1}>
+        <section className="section section-alt">
+          <div className="container">
+            <div className="steps">
+              {steps.map((step, index) => (
+                <FloatingElement key={index} delay={index * 0.3} duration={5}>
+                  <div className="step">
+                    <div className="step-number">{step.number}</div>
+                    <h3>{step.title}</h3>
+                    <p>{step.description}</p>
+                  </div>
+                </FloatingElement>
+              ))}
             </div>
-          </Reveal>
-        </div>
-      </section>
+          </div>
+        </section>
+      </RevealOnScroll>
+
+      <RevealOnScroll threshold={0.1}>
+        <section className="section">
+          <div className="container">
+            <div className="section-header">
+              <h2 className="gradient-text">The Runtime Loop</h2>
+              <p>Snapshot → Classify → Enforce → Verify, every 2 seconds.</p>
+            </div>
+            <div className="features-grid">
+              <Card3D>
+                <div className="feature-card glass-card">
+                  <div className="feature-icon" style={{ background: 'linear-gradient(135deg, #ff6b35, #f7931e)' }}>
+                    📸
+                  </div>
+                  <h3>Snapshot</h3>
+                  <p>Capture frontmost app, window title, browser site, and media playback state.</p>
+                </div>
+              </Card3D>
+              <Card3D>
+                <div className="feature-card glass-card">
+                  <div className="feature-icon" style={{ background: 'linear-gradient(135deg, #9b59b6, #8e44ad)' }}>
+                    🧠
+                  </div>
+                  <h3>Classify</h3>
+                  <p>Rules first (&lt;1ms), LLM for ambiguous cases, vision analysis when needed.</p>
+                </div>
+              </Card3D>
+              <Card3D>
+                <div className="feature-card glass-card">
+                  <div className="feature-icon" style={{ background: 'linear-gradient(135deg, #3498db, #2980b9)' }}>
+                    ⚡
+                  </div>
+                  <h3>Enforce</h3>
+                  <p>Warn → alarm → block → close tabs. Escalates based on persistence.</p>
+                </div>
+              </Card3D>
+              <Card3D>
+                <div className="feature-card glass-card">
+                  <div className="feature-icon" style={{ background: 'linear-gradient(135deg, #2ecc71, #27ae60)' }}>
+                    ✅
+                  </div>
+                  <h3>Verify</h3>
+                  <p>Camera + idle tracking confirm you're actually working and present.</p>
+                </div>
+              </Card3D>
+            </div>
+          </div>
+        </section>
+      </RevealOnScroll>
+
+      <RevealOnScroll threshold={0.1}>
+        <section className="install-section section">
+          <div className="container">
+            <h2 className="gradient-text">Start your first session</h2>
+            <MagneticButton onClick={onCopy}>
+              <Shimmer>Install FocusMac</Shimmer>
+            </MagneticButton>
+          </div>
+        </section>
+      </RevealOnScroll>
     </>
   );
 }
 
 export function InstallPage({ onCopy }) {
-  const parts = installCommand.split(" && ");
   return (
     <>
-      <section className="wrap page">
-        <Reveal>
-          <p className="tag">Install</p>
-          <h1>
-            Copy.
-            <br />
-            <span>Paste. Focus.</span>
-          </h1>
-          <p className="sub">One Terminal paste. Downloads, installs, and opens FocusMac.</p>
-        </Reveal>
+      <ParticleBackground />
+      <MorphingBackground />
+      
+      <section className="section">
+        <div className="container">
+          <div className="section-header">
+            <span className="section-tag">Install</span>
+            <h1 className="gradient-text">Copy. Paste. Focus.</h1>
+            <p>One Terminal paste. Downloads, installs, and opens FocusMac.</p>
+          </div>
+        </div>
       </section>
 
-      <section className="wrap install-page">
-        <Reveal className="prompt">
-          <p className="tag on-dark">Your prompt</p>
-          {parts.map((line, i) => (
-            <p key={line}>
-              <span>{i === 0 ? "$" : "↳"}</span> {line}
+      <RevealOnScroll threshold={0.1}>
+        <section className="section section-alt">
+          <div className="container">
+            <GradientBorder>
+              <div className="install-box glass-card" style={{ 
+                display: 'flex', 
+                flexDirection: 'column', 
+                alignItems: 'flex-start',
+                maxWidth: '600px',
+                margin: '0 auto'
+              }}>
+                <code style={{ wordBreak: 'break-all', textAlign: 'left', fontSize: '14px' }}>{installCommand}</code>
+                <MagneticButton className="copy-btn" onClick={onCopy} style={{ marginTop: '20px', alignSelf: 'flex-start' }}>
+                  <Shimmer>Copy Command</Shimmer>
+                </MagneticButton>
+              </div>
+            </GradientBorder>
+            
+            <div style={{ maxWidth: '600px', margin: '80px auto 0' }}>
+              <h3 style={{ marginBottom: '32px', fontSize: '28px', fontWeight: '800' }} className="gradient-text">Installation Steps</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                {[
+                  { num: 1, title: 'Copy the command', desc: 'Click the copy button above' },
+                  { num: 2, title: 'Paste in Terminal', desc: 'Open Terminal and paste the command' },
+                  { num: 3, title: 'Run the setup wizard', desc: 'Set your password, schedule, and preferences' }
+                ].map((step, index) => (
+                  <FloatingElement key={index} delay={index * 0.2} duration={4}>
+                    <div className="glass-card" style={{ 
+                      display: 'flex', 
+                      gap: '20px', 
+                      alignItems: 'flex-start',
+                      padding: '24px'
+                    }}>
+                      <div style={{ 
+                        width: '48px', 
+                        height: '48px', 
+                        background: 'linear-gradient(135deg, var(--accent), var(--purple))', 
+                        color: 'white', 
+                        borderRadius: '50%', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        fontWeight: 800,
+                        fontSize: '20px',
+                        flexShrink: 0,
+                        animation: 'pulse-glow 2s ease-in-out infinite'
+                      }}>
+                        {step.num}
+                      </div>
+                      <div>
+                        <h4 style={{ marginBottom: '8px', fontSize: '18px', fontWeight: '700' }}>{step.title}</h4>
+                        <p style={{ fontSize: '15px', margin: 0 }}>{step.desc}</p>
+                      </div>
+                    </div>
+                  </FloatingElement>
+                ))}
+              </div>
+            </div>
+
+            <p style={{ textAlign: 'center', marginTop: '60px', fontSize: '16px' }}>
+              Prefer manual installation? <a href={RELEASES_URL} target="_blank" rel="noreferrer" className="text-accent">Download from GitHub Releases</a>
             </p>
-          ))}
-          <button type="button" className="btn light" onClick={onCopy}>
-            Copy command
-          </button>
-        </Reveal>
-        <Reveal>
-          <Term onCopy={onCopy} />
-          <ol className="howto">
-            <li>
-              <b>1</b> Copy the prompt
-            </li>
-            <li>
-              <b>2</b> Paste in Terminal — watch it install
-            </li>
-            <li>
-              <b>3</b> Set your lock password
-            </li>
-          </ol>
-          <p className="micro">
-            Or download from{" "}
-            <a href={RELEASES_URL} target="_blank" rel="noreferrer">
-              GitHub Releases
-            </a>
-            .
-          </p>
-        </Reveal>
-      </section>
+          </div>
+        </section>
+      </RevealOnScroll>
     </>
   );
 }

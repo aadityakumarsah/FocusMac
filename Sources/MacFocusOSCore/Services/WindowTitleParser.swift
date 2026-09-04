@@ -39,11 +39,17 @@ public enum WindowTitleParser {
             .replacingOccurrences(of: "—", with: "-")
             .trimmingCharacters(in: .whitespaces)
         let tLower = t.lowercased()
-        for suffix in BrowserSuffixes[browser] ?? [] {
+        // Sort by length descending so "- Google Chrome" is tried before "Google Chrome"
+        let sortedSuffixes = (BrowserSuffixes[browser] ?? []).sorted { $0.count > $1.count }
+        for suffix in sortedSuffixes {
             if tLower.hasSuffix(suffix.lowercased()) {
                 t = String(t.dropLast(suffix.count)).trimmingCharacters(in: .whitespaces)
                 break
             }
+        }
+        // Clean up trailing " - " left over from suffix removal
+        while t.hasSuffix(" -") || t.hasSuffix(" –") || t.hasSuffix(" —") {
+            t = String(t.dropLast(2)).trimmingCharacters(in: .whitespaces)
         }
         guard !t.isEmpty else { return (nil, nil) }
         var parts = t.components(separatedBy: " - ")

@@ -132,6 +132,8 @@ public struct AppState: Codable {
     public var lifelineEndsAt: Date?
     public var lifelineDays: [LifelineDay]
     public var permissionsRequested: Bool
+    public var screenPermissionGranted: Bool
+    public var cameraPermissionGranted: Bool
 
     public init(
         goal: FocusGoal? = nil,
@@ -154,7 +156,9 @@ public struct AppState: Codable {
         lifelineDayStamp: Date? = nil,
         lifelineEndsAt: Date? = nil,
         lifelineDays: [LifelineDay] = [],
-        permissionsRequested: Bool = false
+        permissionsRequested: Bool = false,
+        screenPermissionGranted: Bool = false,
+        cameraPermissionGranted: Bool = false
     ) {
         self.goal = goal
         self.warnAfter = warnAfter
@@ -177,12 +181,15 @@ public struct AppState: Codable {
         self.lifelineEndsAt = lifelineEndsAt
         self.lifelineDays = lifelineDays
         self.permissionsRequested = permissionsRequested
+        self.screenPermissionGranted = screenPermissionGranted
+        self.cameraPermissionGranted = cameraPermissionGranted
     }
 
     private enum CodingKeys: String, CodingKey {
         case goal, warnAfter, blockAfter, trackingEnabled, totalXP, day, timeline, session, schedule, model
         case distractionLog, cameraCheckEnabled, cameraCheckInterval, attendanceLog, mouseIdleEvents, passwordHash
         case lifelineUsedToday, lifelineDayStamp, lifelineEndsAt, lifelineDays, permissionsRequested
+        case screenPermissionGranted, cameraPermissionGranted
     }
 
     public init(from decoder: Decoder) throws {
@@ -208,6 +215,8 @@ public struct AppState: Codable {
         lifelineEndsAt = try c.decodeIfPresent(Date.self, forKey: .lifelineEndsAt)
         lifelineDays = try c.decodeIfPresent([LifelineDay].self, forKey: .lifelineDays) ?? []
         permissionsRequested = try c.decodeIfPresent(Bool.self, forKey: .permissionsRequested) ?? false
+        screenPermissionGranted = try c.decodeIfPresent(Bool.self, forKey: .screenPermissionGranted) ?? false
+        cameraPermissionGranted = try c.decodeIfPresent(Bool.self, forKey: .cameraPermissionGranted) ?? false
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -233,5 +242,7 @@ public struct AppState: Codable {
         try c.encodeIfPresent(lifelineEndsAt, forKey: .lifelineEndsAt)
         try c.encode(lifelineDays, forKey: .lifelineDays)
         try c.encode(permissionsRequested, forKey: .permissionsRequested)
+        try c.encode(screenPermissionGranted, forKey: .screenPermissionGranted)
+        try c.encode(cameraPermissionGranted, forKey: .cameraPermissionGranted)
     }
 }

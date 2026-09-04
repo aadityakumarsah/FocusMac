@@ -43,6 +43,14 @@ public struct RuleEngine {
     ]
 
     public func classify(_ ctx: ActivityContext, goal: FocusGoal?, duration: TimeInterval) -> Classification {
+        // Check for entertainment keywords across all activities
+        if isEntertainmentContent(ctx.windowTitle) {
+            return Classification(
+                category: .entertainment, alignment: .misaligned, xpPerMinute: -8,
+                confidence: 0.9, reason: "Entertainment content detected: \(ctx.windowTitle ?? "")"
+            )
+        }
+
         if !ctx.isBrowser {
             if let rule = RuleEngine.appRules[ctx.appName.lowercased()] {
                 return appDecision(rule, appName: ctx.appName, goal: goal, duration: duration)
@@ -88,6 +96,14 @@ public struct RuleEngine {
     }
 
     private func siteDecision(site: String, goal: FocusGoal?, ctx: ActivityContext, duration: TimeInterval) -> Classification {
+        // Check for entertainment keywords first - these should be restricted
+        if isEntertainmentContent(ctx.windowTitle) {
+            return Classification(
+                category: .entertainment, alignment: .misaligned, xpPerMinute: -8,
+                confidence: 0.9, reason: "Entertainment content detected: \(ctx.windowTitle ?? "")"
+            )
+        }
+
         switch site {
         case "youtube":
             if let title = ctx.windowTitle, let goal = goal, matches(title, goal) {
@@ -104,8 +120,8 @@ public struct RuleEngine {
                 )
             }
             return Classification(
-                category: .entertainment, alignment: .neutral, xpPerMinute: 0,
-                confidence: 0.6, reason: "Video on YouTube — letting the AI judge the content"
+                category: .entertainment, alignment: .misaligned, xpPerMinute: -8,
+                confidence: 0.85, reason: "Non-educational YouTube content"
             )
         case "reddit":
             if let title = ctx.windowTitle, let goal = goal, matches(title, goal) {
@@ -211,6 +227,22 @@ public struct RuleEngine {
         "mit", "stanford", "harvard", "university", "education", "learning",
         "school", "test prep", "sat", "gate", "jee", "neet", "upsc"
     ]
+
+    // Keywords that indicate entertainment content that should be restricted
+    public static let entertainmentKeywords: [String] = [
+        "vlog", "vlogs", "comedy", "funny", "standup", "stand-up", "stand up",
+        "movie", "movies", "film", "films", "cinema", "theater", "theatre",
+        "series", "show", "episode", "season", "drama", "romance", "action",
+        "horror", "thriller", "animation", "anime", "cartoon", "reality tv",
+        "prank", "challenge", "reaction", "tiktok compilation", "vine compilation",
+        "entertainment", "bloopers", "fails", "memes", "viral", "trending"
+    ]
+
+    public func isEntertainmentContent(_ title: String?) -> Bool {
+        guard let title = title else { return false }
+        let lowercased = title.lowercased()
+        return Self.entertainmentKeywords.contains { lowercased.contains($0) }
+    }
 
     public static let siteRules: [String: (ActivityCategory, Int, Alignment)] = [
         "github": (.coding, 9, .aligned),
